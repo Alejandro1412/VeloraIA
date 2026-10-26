@@ -25,7 +25,14 @@ export function Hero() {
       const tl = gsap.timeline({ defaults: { ease: "expo.out" } });
 
       tl.set(q("[data-headline]"), { autoAlpha: 1 }, 0)
-        .from(split.lines, { yPercent: 110, duration: 1.4, stagger: 0.09 }, 0.15)
+        .from(split.lines, {
+          yPercent: 110,
+          duration: 1.4,
+          stagger: 0.09,
+          // Hand the headline back to normal text flow once revealed, so it
+          // re-wraps correctly on resize (and if the page loaded off-screen).
+          onComplete: () => split.revert(),
+        }, 0.15)
         .fromTo(q("[data-reveal]"), { autoAlpha: 0, y: 18 }, { autoAlpha: 1, y: 0, duration: 1.1, stagger: 0.08 }, 0.6)
         .fromTo(q("[data-phone]"), { autoAlpha: 0, y: 60, rotate: 4 }, { autoAlpha: 1, y: 0, rotate: 0, duration: 1.6 }, 0.35);
 
