@@ -7,7 +7,7 @@ import { WEEKDAYS_ES } from "@/lib/domain/time";
 
 const ORDER = [1, 2, 3, 4, 5, 6, 0];
 
-export function SettingsForm({ settings: s }: { settings: BusinessSettings }) {
+export function SettingsForm({ settings: s, demo = false }: { settings: BusinessSettings; demo?: boolean }) {
   const [state, action, pending] = useActionState(saveSettingsAction, null);
   const [openDays, setOpenDays] = useState(() => s.hours.map(Boolean));
 
@@ -22,6 +22,16 @@ export function SettingsForm({ settings: s }: { settings: BusinessSettings }) {
           <Field id="address" label="Dirección" defaultValue={s.address} />
           <div className="sm:col-span-2">
             <Field id="mapsUrl" label="Enlace de Google Maps" defaultValue={s.mapsUrl} type="url" />
+          </div>
+          <div className="sm:col-span-2">
+            <Field
+              id="whatsappPhoneNumberId"
+              label="ID del número de WhatsApp Business (lo entrega IONEX)"
+              defaultValue={s.whatsappPhoneNumberId ?? ""}
+              inputMode="numeric"
+              placeholder="Ej.: 109876543210987"
+              disabled={demo}
+            />
           </div>
         </div>
       </fieldset>

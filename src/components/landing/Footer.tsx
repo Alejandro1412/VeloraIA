@@ -45,8 +45,8 @@ export function Footer() {
             >
               Agendar una demostración
             </a>
-            <Link href="/app" className="btn border border-white/25 px-6 py-3.5 text-base text-white hover:border-white">
-              Ver el panel
+            <Link href="/registro" className="btn border border-white/25 px-6 py-3.5 text-base text-white hover:border-white">
+              Crear mi cuenta
             </Link>
           </div>
         </div>

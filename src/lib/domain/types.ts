@@ -37,6 +37,8 @@ export interface BusinessSettings {
   welcomeMessage: string;
   extraInstructions: string;
   currency: string;
+  /** Meta phone-number ID whose inbound WhatsApp messages belong to this business. */
+  whatsappPhoneNumberId?: string;
 }
 
 export interface Service {

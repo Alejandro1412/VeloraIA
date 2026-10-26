@@ -112,7 +112,8 @@ class Receptionist {
     if (intents.has("hours")) return { reply: this.hoursText(), state: IDLE };
     if (intents.has("location")) {
       const s = this.d.settings;
-      return { reply: `Estamos en *${s.address}*.\nAsí llegas: ${s.mapsUrl}`, state: IDLE };
+      if (!s.address) return { reply: `Te comparto la dirección enseguida. Si quieres, te comunico con el equipo de ${s.name}.`, state: IDLE };
+      return { reply: `Estamos en *${s.address}*.${s.mapsUrl ? `\nAsí llegas: ${s.mapsUrl}` : ""}`, state: IDLE };
     }
 
     const wantsToBook =
@@ -302,7 +303,7 @@ class Receptionist {
       const apt = await this.d.book({ serviceId: svc.id, start: s.slot!, name: s.name ?? this.d.customerName ?? "" });
       return {
         reply:
-          `¡Cita agendada! ✅\n\n*${svc.name}*\n${this.when(apt.start)}\n${this.d.settings.address}\n\n` +
+          `¡Cita agendada! ✅\n\n*${svc.name}*\n${this.when(apt.start)}${this.d.settings.address ? `\n${this.d.settings.address}` : ""}\n\n` +
           `Te escribiré ${this.d.settings.reminderHoursBefore} horas antes para confirmar. Si necesitas cambiarla, solo dímelo.`,
         state: IDLE,
         event: "booked",

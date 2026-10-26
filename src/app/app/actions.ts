@@ -1,10 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { checkPassword, createSession, destroySession, requireSession } from "@/lib/auth";
+import { destroySession, requireSession } from "@/lib/auth";
+import { renameBusiness } from "@/lib/accounts";
+import { getRepo } from "@/lib/data/repo";
 import { bookAppointment, getAvailability, rescheduleAppointment, setAppointmentStatus } from "@/lib/booking";
 import { BookingError } from "@/lib/domain/booking-errors";
 import { localToUtc } from "@/lib/domain/time";
@@ -19,24 +20,12 @@ import {
   saveSettings,
 } from "@/lib/data/store";
 import { sendText, whatsappConfigured } from "@/lib/channels/whatsapp";
-import { clientIp, rateLimit } from "@/lib/rate-limit";
 
 export type ActionState = { ok?: boolean; error?: string; message?: string } | null;
 
 const refresh = () => revalidatePath("/app", "layout");
 
 /* ---------------------------------- auth ---------------------------------- */
-
-export async function loginAction(_: ActionState, form: FormData): Promise<ActionState> {
-  const ip = clientIp(await headers());
-  if (!rateLimit(`login:${ip}`, 8, 10 * 60_000)) {
-    return { error: "Demasiados intentos. Espera unos minutos e inténtalo de nuevo." };
-  }
-  const password = String(form.get("password") ?? "");
-  if (!checkPassword(password)) return { error: "La contraseña no es correcta." };
-  await createSession();
-  redirect("/app");
-}
 
 export async function logoutAction() {
   await destroySession();
@@ -120,9 +109,11 @@ export async function staffReplyAction(conversationId: string, _: ActionState, f
   if (!conv) return { error: "La conversación ya no existe" };
 
   if (conv.channel === "whatsapp") {
-    if (!whatsappConfigured()) return { error: "Conecta WhatsApp en Ajustes para responder desde aquí." };
+    const settings = await getSettings();
+    const fromNumber = settings.whatsappPhoneNumberId || process.env.WHATSAPP_PHONE_NUMBER_ID;
+    if (!whatsappConfigured() || !fromNumber) return { error: "Conecta tu número de WhatsApp en Ajustes para responder desde aquí." };
     try {
-      await sendText(conv.customerPhone, text);
+      await sendText(conv.customerPhone, text, fromNumber);
     } catch (err) {
       return { error: `WhatsApp rechazó el mensaje: ${(err as Error).message.slice(0, 160)}` };
     }
@@ -191,7 +182,7 @@ export async function deleteServiceAction(id: string) {
 const time = z.string().regex(/^\d{2}:\d{2}$/);
 
 export async function saveSettingsAction(_: ActionState, form: FormData): Promise<ActionState> {
-  await requireSession();
+  const session = await requireSession();
   const current = await getSettings();
   const str = (k: string) => String(form.get(k) ?? "").trim();
   const num = (k: string, fallback: number) => {
@@ -222,6 +213,18 @@ export async function saveSettingsAction(_: ActionState, form: FormData): Promis
   const name = str("name");
   if (name.length < 2) return { error: "Escribe el nombre del negocio" };
 
+  // Routes inbound WhatsApp messages for this number to this business.
+  const waNumberId = session.demo ? (current.whatsappPhoneNumberId ?? "") : str("whatsappPhoneNumberId").replace(/\D/g, "");
+  if (waNumberId !== (current.whatsappPhoneNumberId ?? "")) {
+    const repo = getRepo();
+    if (waNumberId) {
+      const owner = await repo.get<{ businessId: string }>("wa_number", waNumberId);
+      if (owner && owner.businessId !== session.businessId) return { error: "Ese número de WhatsApp ya está conectado a otro negocio." };
+      await repo.put("wa_number", waNumberId, { businessId: session.businessId });
+    }
+    if (current.whatsappPhoneNumberId) await repo.remove("wa_number", current.whatsappPhoneNumberId);
+  }
+
   await saveSettings({
     ...current,
     name,
@@ -238,7 +241,9 @@ export async function saveSettingsAction(_: ActionState, form: FormData): Promis
     maxDaysAhead: Math.max(1, Math.min(180, num("maxDaysAhead", current.maxDaysAhead))),
     reminderHoursBefore: Math.max(1, Math.min(72, num("reminderHoursBefore", current.reminderHoursBefore))),
     hours,
+    whatsappPhoneNumberId: waNumberId,
   });
+  if (!session.demo) await renameBusiness(session.businessId, name);
   refresh();
   return { ok: true, message: "Cambios guardados" };
 }

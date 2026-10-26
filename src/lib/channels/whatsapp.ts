@@ -5,11 +5,13 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 
 const API_VERSION = process.env.WHATSAPP_API_VERSION || "v23.0";
 
-export const whatsappConfigured = () =>
-  !!process.env.WHATSAPP_TOKEN && !!process.env.WHATSAPP_PHONE_NUMBER_ID;
+/** IONEX operates one Meta app; each business can have its own phone number. */
+export const whatsappConfigured = () => !!process.env.WHATSAPP_TOKEN;
 
-async function post(body: Record<string, unknown>) {
-  const url = `https://graph.facebook.com/${API_VERSION}/${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`;
+async function post(body: Record<string, unknown>, fromNumberId?: string) {
+  const numberId = fromNumberId || process.env.WHATSAPP_PHONE_NUMBER_ID;
+  if (!numberId) throw new Error("Este negocio no tiene un número de WhatsApp conectado");
+  const url = `https://graph.facebook.com/${API_VERSION}/${numberId}/messages`;
   const res = await fetch(url, {
     method: "POST",
     headers: {
@@ -23,15 +25,15 @@ async function post(body: Record<string, unknown>) {
   return res.json();
 }
 
-export function sendText(to: string, text: string) {
-  return post({ to: to.replace(/\D/g, ""), type: "text", text: { body: text, preview_url: true } });
+export function sendText(to: string, text: string, fromNumberId?: string) {
+  return post({ to: to.replace(/\D/g, ""), type: "text", text: { body: text, preview_url: true } }, fromNumberId);
 }
 
 /**
  * Template messages are required to start a conversation outside the
  * 24-hour customer service window (e.g. appointment reminders).
  */
-export function sendTemplate(to: string, name: string, params: string[], language = "es") {
+export function sendTemplate(to: string, name: string, params: string[], language = "es", fromNumberId?: string) {
   return post({
     to: to.replace(/\D/g, ""),
     type: "template",
@@ -40,11 +42,11 @@ export function sendTemplate(to: string, name: string, params: string[], languag
       language: { code: language },
       components: [{ type: "body", parameters: params.map((text) => ({ type: "text", text })) }],
     },
-  });
+  }, fromNumberId);
 }
 
-export function markRead(messageId: string) {
-  return post({ status: "read", message_id: messageId }).catch(() => undefined);
+export function markRead(messageId: string, fromNumberId?: string) {
+  return post({ status: "read", message_id: messageId }, fromNumberId).catch(() => undefined);
 }
 
 /** Verifies Meta's X-Hub-Signature-256 header against the raw body. */
@@ -59,6 +61,8 @@ export function verifySignature(rawBody: string, header: string | null): boolean
 
 export interface InboundWhatsApp {
   id: string;
+  /** Meta phone-number ID that received the message (identifies the business). */
+  to: string;
   from: string;
   name?: string;
   text: string | null;
@@ -72,6 +76,7 @@ export function parseWebhook(payload: unknown): InboundWhatsApp[] {
   for (const entry of entries as { changes?: { value?: Record<string, unknown> }[] }[]) {
     for (const change of entry.changes ?? []) {
       const value = change.value ?? {};
+      const to = String((value.metadata as { phone_number_id?: string } | undefined)?.phone_number_id ?? "");
       const contacts = (value.contacts as { wa_id: string; profile?: { name?: string } }[]) ?? [];
       for (const m of (value.messages as Record<string, unknown>[]) ?? []) {
         const from = String(m.from);
@@ -85,6 +90,7 @@ export function parseWebhook(payload: unknown): InboundWhatsApp[] {
         }
         out.push({
           id: String(m.id),
+          to,
           from,
           name: contacts.find((c) => c.wa_id === from)?.profile?.name,
           text,

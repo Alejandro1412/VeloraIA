@@ -226,3 +226,64 @@ export function buildDemoData(now: Date, settings = DEFAULT_SETTINGS, services =
 
   return { customers, appointments, conversations, messages };
 }
+
+type ServiceTemplate = [name: string, minutes: number, price: number, keywords: string[]];
+
+/** Starter catalog per business type; owners edit it in Servicios. */
+const TEMPLATES: Record<string, ServiceTemplate[]> = {
+  "Odontología": DEFAULT_SERVICES.map((s) => [s.name, s.durationMinutes, s.price, s.keywords]),
+  "Estética y spa": [
+    ["Limpieza facial", 60, 120000, ["limpieza facial", "facial", "puntos negros"]],
+    ["Masaje relajante", 60, 140000, ["masaje", "relajante", "spa"]],
+    ["Manicure y pedicure", 90, 70000, ["manicure", "pedicure", "unas", "uñas"]],
+    ["Depilación", 30, 50000, ["depilacion", "cera", "laser"]],
+    ["Valoración estética", 30, 0, ["valoracion", "evaluacion", "consulta"]],
+  ],
+  "Veterinaria": [
+    ["Consulta general", 30, 60000, ["consulta", "revision", "chequeo", "enfermo"]],
+    ["Vacunación", 20, 50000, ["vacuna", "vacunacion", "refuerzo"]],
+    ["Baño y peluquería", 90, 70000, ["baño", "bano", "peluqueria", "corte", "grooming"]],
+    ["Desparasitación", 20, 35000, ["desparasitar", "desparasitacion", "pulgas"]],
+    ["Urgencia", 30, 90000, ["urgencia", "emergencia", "vomito", "herida", "golpe"]],
+  ],
+  "Fisioterapia": [
+    ["Valoración inicial", 45, 80000, ["valoracion", "evaluacion", "primera vez"]],
+    ["Sesión de fisioterapia", 60, 90000, ["sesion", "terapia", "fisioterapia", "dolor"]],
+    ["Terapia deportiva", 60, 110000, ["deportiva", "lesion", "esguince"]],
+    ["Drenaje linfático", 60, 100000, ["drenaje", "linfatico"]],
+  ],
+  "Barbería y peluquería": [
+    ["Corte de cabello", 30, 30000, ["corte", "cabello", "pelo"]],
+    ["Corte y barba", 45, 45000, ["barba", "corte y barba", "perfilado"]],
+    ["Tinte", 90, 90000, ["tinte", "color", "mechas"]],
+    ["Cepillado", 45, 35000, ["cepillado", "planchado", "peinado"]],
+  ],
+  "Taller": [
+    ["Diagnóstico", 60, 60000, ["diagnostico", "revision", "ruido", "falla"]],
+    ["Cambio de aceite", 45, 120000, ["aceite", "cambio de aceite", "filtro"]],
+    ["Alineación y balanceo", 60, 90000, ["alineacion", "balanceo", "llantas"]],
+    ["Revisión de frenos", 60, 80000, ["frenos", "pastillas"]],
+  ],
+  "Consultorio médico": [
+    ["Consulta general", 30, 90000, ["consulta", "medico", "cita medica", "chequeo"]],
+    ["Control", 20, 60000, ["control", "seguimiento", "resultados"]],
+    ["Procedimiento menor", 45, 150000, ["procedimiento", "curacion", "sutura"]],
+  ],
+};
+
+const GENERIC: ServiceTemplate[] = [
+  ["Primera cita", 30, 0, ["primera vez", "valoracion", "consulta"]],
+  ["Cita estándar", 60, 80000, ["cita", "servicio", "sesion"]],
+];
+
+export function servicesForVertical(vertical: string): Service[] {
+  return (TEMPLATES[vertical] ?? GENERIC).map(([name, durationMinutes, price, keywords], i) => ({
+    id: `svc_${i + 1}_${name.toLowerCase().normalize("NFD").replace(/[^a-z]/g, "").slice(0, 16)}`,
+    name,
+    durationMinutes,
+    price,
+    description: "",
+    keywords,
+    active: true,
+  }));
+}

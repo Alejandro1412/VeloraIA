@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRef } from "react";
 import { gsap, prefersReducedMotion, SplitText, useGSAP } from "../motion/gsap";
 
@@ -85,9 +86,9 @@ export function Hero() {
             <a href="#demo" className="btn-cobalt px-6 py-3.5 text-base">
               Hablar con Sofía ahora
             </a>
-            <a href="#precios" className="btn-ghost px-6 py-3.5 text-base">
-              Ver planes
-            </a>
+            <Link href="/registro" className="btn-ghost px-6 py-3.5 text-base">
+              Crear mi cuenta
+            </Link>
           </div>
           <p data-reveal className="invisible mt-8 max-w-md text-[15px] text-muted">
             Hecho para odontologías, centros de estética, veterinarias, fisioterapia, barberías y talleres en Colombia.

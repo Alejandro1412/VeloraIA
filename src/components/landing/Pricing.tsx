@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { clsx } from "clsx";
 
 export const PLANS = [
@@ -85,14 +86,12 @@ export function Pricing() {
                   </li>
                 ))}
               </ul>
-              <a
-                href={`https://wa.me/?text=${encodeURIComponent(`Hola IONEX, quiero el plan ${p.name} de Velora para mi negocio.`)}`}
-                target="_blank"
-                rel="noreferrer"
+              <Link
+                href={`/registro?plan=${p.name.toLowerCase()}`}
                 className={clsx("mt-10 w-full", "featured" in p && p.featured ? "btn-cobalt" : "btn-ghost")}
               >
-                Quiero el plan {p.name}
-              </a>
+                Empezar con {p.name}
+              </Link>
             </article>
           ))}
         </div>

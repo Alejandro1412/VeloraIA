@@ -57,12 +57,12 @@ export function Nav() {
           ))}
         </ul>
         <div className="flex items-center gap-2">
-          <Link href="/app" className="hidden rounded-full px-3.5 py-2 text-[15px] text-ink-2 hover:text-ink sm:inline-block">
-            Entrar al panel
+          <Link href="/login" className="hidden rounded-full px-3.5 py-2 text-[15px] text-ink-2 hover:text-ink sm:inline-block">
+            Iniciar sesión
           </Link>
-          <a href="#demo" className="btn-primary btn-sm">
-            Probar la demo
-          </a>
+          <Link href="/registro" className="btn-primary btn-sm">
+            Crear cuenta
+          </Link>
           <button
             type="button"
             className="grid size-10 place-items-center rounded-full lg:hidden"
@@ -86,7 +86,7 @@ export function Nav() {
         )}
       >
         <ul className="p-3">
-          {[...links, { href: "/app", label: "Entrar al panel" }].map((l) => (
+          {[...links, { href: "/login", label: "Iniciar sesión" }, { href: "/registro", label: "Crear cuenta" }].map((l) => (
             <li key={l.href}>
               <a href={l.href} onClick={() => setOpen(false)} className="block rounded-2xl px-4 py-3 text-lg font-medium hover:bg-porcelain">
                 {l.label}

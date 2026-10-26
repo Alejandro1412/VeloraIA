@@ -1,5 +1,5 @@
 import "server-only";
-import { isDemoAuth } from "./auth";
+import { googleConfigured } from "./google";
 import { llmEnabled } from "./agent/llm";
 import { whatsappConfigured } from "./channels/whatsapp";
 import { voiceConfigured } from "./channels/voice";
@@ -39,9 +39,9 @@ export function integrationStatus(): IntegrationStatus[] {
       name: "WhatsApp Business",
       connected: whatsappConfigured(),
       detail: whatsappConfigured()
-        ? "Recibiendo y respondiendo mensajes."
-        : "Conecta un número de WhatsApp Cloud API para atender clientes reales.",
-      env: ["WHATSAPP_TOKEN", "WHATSAPP_PHONE_NUMBER_ID", "WHATSAPP_VERIFY_TOKEN", "WHATSAPP_APP_SECRET", "WHATSAPP_REMINDER_TEMPLATE"],
+        ? "Cuenta de Meta conectada. Agrega el ID de tu número en “Tu negocio”."
+        : "IONEX conecta tu número de WhatsApp Business para atender clientes reales.",
+      env: ["WHATSAPP_TOKEN", "WHATSAPP_VERIFY_TOKEN", "WHATSAPP_APP_SECRET", "WHATSAPP_REMINDER_TEMPLATE"],
     },
     {
       key: "voice",
@@ -60,11 +60,13 @@ export function integrationStatus(): IntegrationStatus[] {
       env: ["CRON_SECRET"],
     },
     {
-      key: "auth",
-      name: "Acceso al panel",
-      connected: !isDemoAuth(),
-      detail: isDemoAuth() ? "Usando la contraseña de demostración." : "Contraseña propia configurada.",
-      env: ["ADMIN_PASSWORD", "AUTH_SECRET"],
+      key: "google",
+      name: "Acceso con Google",
+      connected: googleConfigured(),
+      detail: googleConfigured()
+        ? "Los negocios pueden crear su cuenta y entrar con Google."
+        : "Agrega las credenciales OAuth de Google para activar “Continuar con Google”.",
+      env: ["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET"],
     },
   ];
 }

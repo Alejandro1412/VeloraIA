@@ -11,7 +11,6 @@ interface ChatMessage {
   text: string;
 }
 
-const STORAGE_KEY = "velora:demo-conversation";
 
 const SUGGESTIONS = [
   "Quiero una limpieza mañana a las 10",
@@ -20,25 +19,36 @@ const SUGGESTIONS = [
   "¿Cuál es el horario?",
 ];
 
-function readStoredId(): string | null {
+function readStoredId(key: string): string | null {
   try {
-    return window.localStorage.getItem(STORAGE_KEY);
+    return window.localStorage.getItem(key);
   } catch {
     return null;
   }
 }
 
-function storeId(id: string | null) {
+function storeId(key: string, id: string | null) {
   try {
-    if (id) window.localStorage.setItem(STORAGE_KEY, id);
-    else window.localStorage.removeItem(STORAGE_KEY);
+    if (id) window.localStorage.setItem(key, id);
+    else window.localStorage.removeItem(key);
   } catch {
     /* storage unavailable (private mode) — keep it in memory only */
   }
 }
 
 /** Live chat with the receptionist, backed by /api/chat. */
-export function ChatWidget({ greeting, assistantName = "Sofía" }: { greeting: string; assistantName?: string }) {
+export function ChatWidget({
+  greeting,
+  assistantName = "Sofía",
+  businessId = "demo",
+  bookedNote = "Esta cita ya aparece en la agenda del panel de demostración.",
+}: {
+  greeting: string;
+  assistantName?: string;
+  businessId?: string;
+  bookedNote?: string;
+}) {
+  const storageKey = `velora:conversation:${businessId}`;
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([{ id: "greet", role: "assistant", text: greeting }]);
   const [input, setInput] = useState("");
@@ -51,18 +61,18 @@ export function ChatWidget({ greeting, assistantName = "Sofía" }: { greeting: s
 
   // Restore an earlier session so a refresh doesn't lose the thread.
   useEffect(() => {
-    const id = readStoredId();
+    const id = readStoredId(storageKey);
     if (!id) return;
-    fetch(`/api/chat?conversationId=${encodeURIComponent(id)}`)
+    fetch(`/api/chat?businessId=${encodeURIComponent(businessId)}&conversationId=${encodeURIComponent(id)}`)
       .then((r) => r.json())
       .then((data: { messages: ChatMessage[] }) => {
         if (data.messages?.length) {
           setConversationId(id);
           setMessages([{ id: "greet", role: "assistant", text: greeting }, ...data.messages]);
-        } else storeId(null);
+        } else storeId(storageKey, null);
       })
       .catch(() => undefined);
-  }, [greeting]);
+  }, [greeting, businessId, storageKey]);
 
   // Pick up replies typed by the business team from the dashboard.
   useEffect(() => {
@@ -70,7 +80,7 @@ export function ChatWidget({ greeting, assistantName = "Sofía" }: { greeting: s
     const id = window.setInterval(async () => {
       if (document.visibilityState !== "visible") return;
       try {
-        const res = await fetch(`/api/chat?conversationId=${encodeURIComponent(conversationId)}`);
+        const res = await fetch(`/api/chat?businessId=${encodeURIComponent(businessId)}&conversationId=${encodeURIComponent(conversationId)}`);
         const data = (await res.json()) as { messages: ChatMessage[] };
         if (pendingRef.current || !data.messages) return;
         // Only adopt the server copy when it has messages we haven't shown (staff replies).
@@ -82,7 +92,7 @@ export function ChatWidget({ greeting, assistantName = "Sofía" }: { greeting: s
       }
     }, 6000);
     return () => window.clearInterval(id);
-  }, [conversationId, greeting]);
+  }, [conversationId, greeting, businessId]);
 
   useEffect(() => {
     pendingRef.current = pending;
@@ -106,12 +116,12 @@ export function ChatWidget({ greeting, assistantName = "Sofía" }: { greeting: s
         const res = await fetch("/api/chat", {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ conversationId: conversationId ?? undefined, message }),
+          body: JSON.stringify({ businessId, conversationId: conversationId ?? undefined, message }),
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error ?? "Error");
         setConversationId(data.conversationId);
-        storeId(data.conversationId);
+        storeId(storageKey, data.conversationId);
         if (data.reply) setMessages((m) => [...m, { id: `a-${Date.now()}`, role: "assistant", text: data.reply }]);
         else
           setMessages((m) => [
@@ -126,7 +136,7 @@ export function ChatWidget({ greeting, assistantName = "Sofía" }: { greeting: s
         inputRef.current?.focus();
       }
     },
-    [conversationId, pending],
+    [conversationId, pending, businessId, storageKey],
   );
 
   const onSubmit = (e: FormEvent) => {
@@ -135,7 +145,7 @@ export function ChatWidget({ greeting, assistantName = "Sofía" }: { greeting: s
   };
 
   const reset = () => {
-    storeId(null);
+    storeId(storageKey, null);
     setConversationId(null);
     setMessages([{ id: "greet", role: "assistant", text: greeting }]);
     setEvent(null);
@@ -208,7 +218,7 @@ export function ChatWidget({ greeting, assistantName = "Sofía" }: { greeting: s
             className="overflow-hidden bg-mint-soft px-5 text-sm text-ink"
           >
             <span className="block py-2.5">
-              Esta cita ya aparece en el panel. Entra con la contraseña de demostración para verla.
+              {bookedNote}
             </span>
           </motion.p>
         )}

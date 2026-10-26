@@ -8,7 +8,7 @@ import { neon } from "@neondatabase/serverless";
  * or an in-memory store for local development and demo deployments.
  */
 
-export type Kind = "settings" | "service" | "customer" | "appointment" | "conversation" | "message";
+export type Kind = string; // "<scope>:<collection>", e.g. "biz_123:appointment", or a global collection such as "user"
 
 export interface ListOptions {
   from?: string;

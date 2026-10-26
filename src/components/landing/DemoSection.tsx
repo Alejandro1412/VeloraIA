@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ChatWidget } from "../chat/ChatWidget";
 import { DEFAULT_SETTINGS } from "@/lib/data/seed";
+import { demoAction } from "@/app/login/actions";
 
 export function DemoSection() {
   return (
@@ -28,14 +29,14 @@ export function DemoSection() {
               Pregunta precios, horarios o la dirección.
             </li>
           </ul>
-          <p className="mt-8 text-[15px] text-muted">
-            Luego entra al{" "}
-            <Link href="/app" className="font-medium text-cobalt underline-offset-4 hover:underline">
-              panel de la clínica
-            </Link>{" "}
-            con la contraseña <span className="rounded bg-paper px-1.5 py-0.5 font-medium text-ink">velora2026</span> para ver
-            tu cita en la agenda.
-          </p>
+          <form action={demoAction} className="mt-8 flex flex-wrap items-center gap-x-4 gap-y-3">
+            <button type="submit" className="btn-ghost btn-sm">
+              Ver la agenda de la clínica
+            </button>
+            <Link href="/registro" className="text-[15px] font-medium text-cobalt underline-offset-4 hover:underline">
+              Crear la de mi negocio
+            </Link>
+          </form>
         </div>
         <div className="h-[620px] max-h-[82dvh]">
           <ChatWidget greeting={DEFAULT_SETTINGS.welcomeMessage} assistantName={DEFAULT_SETTINGS.assistantName} />

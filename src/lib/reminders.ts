@@ -48,10 +48,11 @@ export async function sendDueReminders(now = new Date()): Promise<ReminderRun> {
       `Responde *CONFIRMO* para confirmar, o escríbenos si necesitas moverla.`;
 
     try {
-      if (whatsappConfigured()) {
+      const fromNumber = settings.whatsappPhoneNumberId || undefined;
+      if (whatsappConfigured() && (fromNumber || process.env.WHATSAPP_PHONE_NUMBER_ID)) {
         const template = process.env.WHATSAPP_REMINDER_TEMPLATE;
-        if (template) await sendTemplate(customer.phone, template, [first, service?.name ?? "servicio", day, formatTimeEs(local.time)]);
-        else await sendText(customer.phone, text);
+        if (template) await sendTemplate(customer.phone, template, [first, service?.name ?? "servicio", day, formatTimeEs(local.time)], "es", fromNumber);
+        else await sendText(customer.phone, text, fromNumber);
       } else {
         run.skipped++;
         continue;

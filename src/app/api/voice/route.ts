@@ -2,12 +2,19 @@ import { NextResponse, type NextRequest } from "next/server";
 import { handleIncoming } from "@/lib/agent";
 import { gatherTwiml, verifyTwilio } from "@/lib/channels/voice";
 import { getSettings } from "@/lib/data/store";
+import { DEMO_BUSINESS_ID, isValidBusinessId, withBusiness } from "@/lib/tenant";
 
 /**
- * Twilio voice webhook. Point your Twilio number's "A call comes in" URL to
- * https://<your-domain>/api/voice (HTTP POST).
+ * Twilio voice webhook. Point each business' Twilio number "A call comes in"
+ * URL to https://<your-domain>/api/voice?b=<businessId> (HTTP POST).
  */
 export async function POST(req: NextRequest) {
+  const businessId = req.nextUrl.searchParams.get("b") ?? DEMO_BUSINESS_ID;
+  if (!isValidBusinessId(businessId)) return new NextResponse("Not found", { status: 404 });
+  return withBusiness(businessId, () => answer(req));
+}
+
+async function answer(req: NextRequest) {
   const form = await req.formData();
   const params: Record<string, string> = {};
   form.forEach((v, k) => (params[k] = String(v)));

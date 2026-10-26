@@ -1,39 +1,52 @@
 import "server-only";
-import { createHash, timingSafeEqual } from "node:crypto";
+import { createHash } from "node:crypto";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { jwtVerify, SignJWT } from "jose";
+import { DEMO_BUSINESS_ID } from "./tenant";
 
 /**
- * Single-tenant owner authentication: one password (ADMIN_PASSWORD) and a
- * signed, httpOnly session cookie. Swap for an identity provider when you go
- * multi-tenant.
+ * Sessions: a signed, httpOnly JWT cookie that says who is signed in and which
+ * business they manage. Accounts themselves live in ./accounts.ts.
  */
 
 const COOKIE = "velora_session";
 const MAX_AGE = 60 * 60 * 24 * 14;
 
-export const DEMO_PASSWORD = "velora2026";
-export const isDemoAuth = () => !process.env.ADMIN_PASSWORD;
-
-function secret() {
-  const raw = process.env.AUTH_SECRET || `velora-dev-secret:${process.env.ADMIN_PASSWORD ?? DEMO_PASSWORD}`;
-  return new TextEncoder().encode(raw);
+export interface Session {
+  userId: string;
+  businessId: string;
+  name: string;
+  email: string;
+  demo: boolean;
 }
 
-export function checkPassword(input: string) {
-  const expected = process.env.ADMIN_PASSWORD || DEMO_PASSWORD;
-  const a = createHash("sha256").update(input).digest();
-  const b = createHash("sha256").update(expected).digest();
-  return timingSafeEqual(a, b);
+/**
+ * Signing key: AUTH_SECRET when set. Otherwise it is derived from the database
+ * URL (already a server-only secret), so sessions survive redeploys without
+ * extra configuration. Last resort: a per-deployment key.
+ */
+let cachedKey: Uint8Array | null = null;
+export function authSecret() {
+  if (cachedKey) return cachedKey;
+  const explicit = process.env.AUTH_SECRET;
+  const dbUrl = process.env.DATABASE_URL || process.env.POSTGRES_URL;
+  const material = explicit
+    ? explicit
+    : createHash("sha256")
+        .update(`velora-session-v1:${dbUrl ?? process.env.VERCEL_DEPLOYMENT_ID ?? "local-dev"}`)
+        .digest("base64");
+  cachedKey = new TextEncoder().encode(material);
+  return cachedKey;
 }
 
-export async function createSession() {
-  const token = await new SignJWT({ role: "owner" })
+export async function createSession(s: Omit<Session, "demo"> & { demo?: boolean }) {
+  const token = await new SignJWT({ biz: s.businessId, name: s.name, email: s.email, demo: !!s.demo })
     .setProtectedHeader({ alg: "HS256" })
+    .setSubject(s.userId)
     .setIssuedAt()
     .setExpirationTime(`${MAX_AGE}s`)
-    .sign(secret());
+    .sign(authSecret());
   (await cookies()).set(COOKIE, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
@@ -43,22 +56,35 @@ export async function createSession() {
   });
 }
 
+export async function createDemoSession() {
+  await createSession({ userId: "demo", businessId: DEMO_BUSINESS_ID, name: "Visitante", email: "", demo: true });
+}
+
 export async function destroySession() {
   (await cookies()).delete(COOKIE);
 }
 
-export async function hasSession(): Promise<boolean> {
+export async function getSession(): Promise<Session | null> {
   const token = (await cookies()).get(COOKIE)?.value;
-  if (!token) return false;
+  if (!token) return null;
   try {
-    await jwtVerify(token, secret(), { algorithms: ["HS256"] });
-    return true;
+    const { payload } = await jwtVerify(token, authSecret(), { algorithms: ["HS256"] });
+    if (!payload.sub || typeof payload.biz !== "string") return null;
+    return {
+      userId: payload.sub,
+      businessId: payload.biz,
+      name: String(payload.name ?? ""),
+      email: String(payload.email ?? ""),
+      demo: payload.demo === true,
+    };
   } catch {
-    return false;
+    return null;
   }
 }
 
 /** Use at the top of every protected server component and action. */
-export async function requireSession() {
-  if (!(await hasSession())) redirect("/login");
+export async function requireSession(): Promise<Session> {
+  const session = await getSession();
+  if (!session) redirect("/login");
+  return session;
 }

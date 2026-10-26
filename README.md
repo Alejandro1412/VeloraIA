@@ -7,7 +7,9 @@ Un producto de **IONEX**. Velora contesta WhatsApp y llamadas las 24 horas, agen
 | Parte | Ruta | Descripción |
 |---|---|---|
 | Sitio comercial | `/` | Landing con animaciones de scroll (GSAP ScrollTrigger + Lenis + SplitText), demo en vivo, calculadora de ahorro y planes. |
-| Panel del negocio | `/app` | Resumen, agenda semanal, conversaciones con toma de control humana, servicios y ajustes. |
+| Registro e inicio de sesión | `/registro`, `/login` | Cada negocio crea su cuenta con correo y contraseña o con Google. |
+| Panel del negocio | `/app` | Resumen, agenda semanal, conversaciones con toma de control humana, servicios y ajustes. Cada cuenta ve solo sus datos. |
+| Página de reservas | `/reservar/<id>` | Enlace público de cada negocio para que sus clientes agenden con Sofía. |
 | Chat web | `POST /api/chat` | El mismo agente que atiende WhatsApp y voz. |
 | WhatsApp | `/api/whatsapp/webhook` | WhatsApp Business Cloud API de Meta, con verificación de firma. |
 | Voz | `POST /api/voice` | Twilio Programmable Voice con reconocimiento de voz en español. |
@@ -37,15 +39,28 @@ npm run dev        # http://localhost:3000
 npm test           # pruebas del motor de agenda y del agente
 ```
 
-Sin variables de entorno arranca en **modo demo**: datos de ejemplo en memoria y contraseña del panel `velora2026`.
+Sin variables de entorno arranca en **modo demo**: los datos viven en memoria y hay una clínica de demostración accesible desde "Ver la demo del panel" en `/login`.
+
+## Cuentas y multi-negocio
+
+- Cada registro crea un **usuario** y un **negocio** con servicios iniciales según su tipo (odontología, spa, veterinaria…).
+- Todos los datos (agenda, clientes, conversaciones, ajustes) se guardan con el ID del negocio y `src/lib/data/store.ts` filtra siempre por el negocio activo, que sale de la sesión o del canal (`withBusiness`).
+- Contraseñas con scrypt; sesión en cookie httpOnly firmada (JWT HS256).
+- Google: OAuth 2.0 con PKCE, `state` y `nonce`; el `id_token` se verifica contra las llaves públicas de Google. Si el correo ya existe, se vincula a esa cuenta.
+
+### Activar "Continuar con Google"
+
+1. En [Google Cloud Console](https://console.cloud.google.com/apis/credentials) crea un proyecto, configura la pantalla de consentimiento (tipo *Externo*) y crea un **ID de cliente OAuth** de tipo *Aplicación web*.
+2. En *URIs de redirección autorizados* agrega `https://TU-DOMINIO/api/auth/google/callback`.
+3. Copia el *ID de cliente* y el *Secreto* en Vercel como `GOOGLE_CLIENT_ID` y `GOOGLE_CLIENT_SECRET` y vuelve a desplegar.
 
 ## Poner en producción para un cliente
 
-1. **Base de datos:** crea una base Postgres en Neon (o Vercel Postgres desde el Marketplace) y define `DATABASE_URL`. La tabla se crea sola. Usa `SEED_DEMO=false` para empezar vacío.
-2. **Acceso:** define `ADMIN_PASSWORD` y `AUTH_SECRET` (`openssl rand -base64 32`).
+1. **Base de datos (obligatoria para cuentas reales):** crea una base Postgres en Neon desde *Storage* en Vercel; define `DATABASE_URL` automáticamente. La tabla se crea sola.
+2. **Sesiones:** opcionalmente define `AUTH_SECRET` (`openssl rand -base64 32`).
 3. **IA:** define `ANTHROPIC_API_KEY` (opcional `AI_MODEL`).
-4. **WhatsApp:** en Meta for Developers crea una app de WhatsApp, registra el webhook `https://TU-DOMINIO/api/whatsapp/webhook` con tu `WHATSAPP_VERIFY_TOKEN`, suscríbete a `messages` y define `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID` y `WHATSAPP_APP_SECRET`. Para recordatorios fuera de la ventana de 24 h, aprueba una plantilla con 4 variables (nombre, servicio, día, hora) y ponla en `WHATSAPP_REMINDER_TEMPLATE`.
-5. **Voz (opcional):** en Twilio apunta "A call comes in" a `https://TU-DOMINIO/api/voice` (POST) y define `TWILIO_AUTH_TOKEN`.
+4. **WhatsApp:** en Meta for Developers crea la app de WhatsApp de IONEX, registra el webhook `https://TU-DOMINIO/api/whatsapp/webhook` con tu `WHATSAPP_VERIFY_TOKEN`, suscríbete a `messages` y define `WHATSAPP_TOKEN` y `WHATSAPP_APP_SECRET`. Cada negocio escribe el *ID de su número* en Ajustes y los mensajes a ese número llegan a su panel. Para recordatorios fuera de la ventana de 24 h, aprueba una plantilla con 4 variables (nombre, servicio, día, hora) y ponla en `WHATSAPP_REMINDER_TEMPLATE`.
+5. **Voz (opcional):** en Twilio apunta "A call comes in" a `https://TU-DOMINIO/api/voice?b=<ID del negocio>` (POST) y define `TWILIO_AUTH_TOKEN`.
 6. **Recordatorios:** define `CRON_SECRET`. El cron ya está en `vercel.json`.
 
 Todas las variables están documentadas en `.env.example`.
