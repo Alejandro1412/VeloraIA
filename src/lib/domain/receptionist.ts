@@ -28,6 +28,8 @@ export interface AgentDeps {
   cancel(id: string): Promise<Appointment>;
   confirm(id: string): Promise<Appointment>;
   upcoming(): Promise<Appointment[]>;
+  /** Source of randomness for varied wording (tests pass a fixed one). */
+  random?: () => number;
 }
 
 export interface AgentResult {
@@ -49,6 +51,12 @@ class Receptionist {
   private today: string;
   constructor(private d: AgentDeps) {
     this.today = localParts(d.now, d.settings.utcOffsetMinutes).date;
+  }
+
+  /** Picks one of several equivalent phrasings so replies don't feel canned. */
+  private pick(...options: string[]): string {
+    const rnd = this.d.random ?? Math.random;
+    return options[Math.min(options.length - 1, Math.floor(rnd() * options.length))];
   }
 
   private get services() {
@@ -85,7 +93,12 @@ class Receptionist {
     if (intents.has("reschedule") && state.intent !== "reschedule") return this.startManage("reschedule");
     if (intents.has("human")) {
       return {
-        reply: `Con gusto te comunico con el equipo de ${this.d.settings.name}. Una persona te responderá por este mismo chat en breve 🙌`,
+        reply: this.pick(
+          `Con gusto te comunico con el equipo de ${this.d.settings.name}. Una persona te responderá por este mismo chat en breve 🙌`,
+          `¡Claro! Ya le aviso al equipo de ${this.d.settings.name}. Alguien te escribe por aquí mismo en un momento.`,
+          `Entendido, te paso con una persona del equipo. Te responden por este chat muy pronto 🙌`,
+          `Por supuesto. Dejé tu mensaje con el equipo de ${this.d.settings.name} y te contestan aquí en breve.`,
+        ),
         state: IDLE,
         handoff: true,
       };
@@ -121,7 +134,11 @@ class Receptionist {
       if (next) {
         await this.d.confirm(next.id);
         return {
-          reply: `¡Gracias por confirmar! Te esperamos ${this.when(next.start)} ✅`,
+          reply: this.pick(
+            `¡Gracias por confirmar! Te esperamos ${this.when(next.start)} ✅`,
+            `¡Perfecto, quedó confirmada! Nos vemos ${this.when(next.start)} 😊`,
+            `Confirmado ✅ Te esperamos ${this.when(next.start)}. ¡Gracias por avisar!`,
+          ),
           state: IDLE,
           event: "confirmed",
         };
@@ -140,17 +157,36 @@ class Receptionist {
       intents.has("book") || !!matchService(text, this.services) || !!parseDate(text, this.today) || !!parseTime(text);
     if (wantsToBook) return this.advance({ step: "service", intent: "book" }, text);
 
-    if (intents.has("thanks")) return { reply: "¡Con gusto! Si necesitas algo más, aquí estoy 😊", state: IDLE };
+    if (intents.has("thanks")) {
+      return {
+        reply: this.pick(
+          "¡Con gusto! Si necesitas algo más, aquí estoy 😊",
+          "¡A ti! Cualquier cosa me escribes 🙌",
+          "Para eso estoy. ¡Que tengas un lindo día!",
+          "¡Con mucho gusto! Aquí sigo si se te ofrece algo más.",
+        ),
+        state: IDLE,
+      };
+    }
     if (intents.has("greeting")) {
       const name = this.d.customerName?.split(" ")[0];
       const welcome = name
-        ? `¡Hola ${name}! Soy ${this.d.settings.assistantName} de ${this.d.settings.name}. ¿Quieres agendar, mover o cancelar una cita?`
-        : this.d.settings.welcomeMessage;
+        ? this.pick(
+            `¡Hola ${name}! Soy ${this.d.settings.assistantName} de ${this.d.settings.name}. ¿Quieres agendar, mover o cancelar una cita?`,
+            `¡Qué gusto saludarte, ${name}! ¿En qué te ayudo hoy?`,
+            `¡Hola de nuevo, ${name}! 😊 ¿Agendamos algo o necesitas cambiar una cita?`,
+          )
+        : this.pick(
+            this.d.settings.welcomeMessage,
+            `¡Hola! Soy ${this.d.settings.assistantName} de ${this.d.settings.name} 👋 ¿En qué te puedo ayudar?`,
+            `¡Buenas! Te habla ${this.d.settings.assistantName}, de ${this.d.settings.name}. ¿Quieres agendar una cita o tienes alguna pregunta?`,
+          );
       return { reply: welcome, state: IDLE };
     }
     return {
       reply:
-        `Puedo ayudarte a:\n• *Agendar* una cita\n• *Reprogramar* o *cancelar* tu cita\n• Ver *servicios y precios*\n• Conocer *horarios* y *dirección*\n\n` +
+        this.pick("Puedo ayudarte a:", "No estoy segura de haberte entendido 🙈 Esto es lo que puedo hacer por ti:", "Te cuento en qué te ayudo:") +
+        `\n• *Agendar* una cita\n• *Reprogramar* o *cancelar* tu cita\n• Ver *servicios y precios*\n• Conocer *horarios* y *dirección*\n\n` +
         `Por ejemplo: "Quiero una limpieza el viernes a las 3".`,
       state: IDLE,
     };
@@ -170,7 +206,10 @@ class Receptionist {
     if (preferred) s.staffId = preferred;
     if (!s.serviceId) {
       return {
-        reply: `¡Claro! ¿Qué servicio necesitas?\n\n${this.servicesList()}\n\nResponde con el número o el nombre.`,
+        reply:
+          this.pick("¡Claro! ¿Qué servicio necesitas?", "¡Con gusto! ¿Para qué servicio sería?", "¡Listo! Cuéntame, ¿qué servicio quieres?") +
+          `\n\n${this.servicesList()}\n\n` +
+          this.pick("Responde con el número o el nombre.", "Puedes responder con el número o escribir el nombre.", "Escríbeme el número o el nombre del servicio."),
         state: { ...s, step: "service" },
       };
     }
@@ -192,7 +231,7 @@ class Receptionist {
       return {
         reply:
           `A las ${formatTimeEs(time)} no tengo espacio ${relativeDayEs(date, this.today)}, pero sí tengo:\n\n` +
-          `${this.numbered(options.map((o) => formatTimeEs(o.time)))}\n\n¿Te sirve alguna?`,
+          `${this.numbered(options.map((o) => formatTimeEs(o.time)))}\n\n${this.pick("¿Te sirve alguna?", "¿Alguna te queda bien?", "¿Cuál te acomoda?")}`,
         state: { ...s, step: "time", offeredSlots: options.map((o) => o.start) },
       };
     }
@@ -202,7 +241,12 @@ class Receptionist {
     return {
       reply:
         `Para *${svc.name}*${withWho} ${relativeDayEs(date, this.today)} tengo:\n\n` +
-        `${this.numbered(options.map((o) => formatTimeEs(o.time)))}\n\n¿Cuál prefieres? También puedes escribir otra hora.`,
+        `${this.numbered(options.map((o) => formatTimeEs(o.time)))}\n\n` +
+        this.pick(
+          "¿Cuál prefieres? También puedes escribir otra hora.",
+          "¿Cuál te sirve más? Si quieres otra hora, escríbemela.",
+          "Elige una, o dime la hora que te quede mejor.",
+        ),
       state: { ...s, step: "time", offeredSlots: options.map((o) => o.start) },
     };
   }
@@ -211,7 +255,7 @@ class Receptionist {
     const days = await this.openDays(svc.id, s.appointmentId, this.today, s.staffId);
     return {
       reply:
-        `Perfecto, *${svc.name}* (${svc.durationMinutes} min · ${formatMoney(svc.price, this.d.settings.currency)}). ¿Para qué día?\n\n` +
+        `${this.pick("Perfecto", "Muy bien", "Genial")}, *${svc.name}* (${svc.durationMinutes} min · ${formatMoney(svc.price, this.d.settings.currency)}). ${this.pick("¿Para qué día?", "¿Qué día te queda bien?", "¿Para cuándo la quieres?")}\n\n` +
         `Los próximos días con espacio son:\n${this.numbered(days.map((d) => relativeDayEs(d, this.today)))}`,
       state: { ...s, step: "date", offeredDates: days },
     };
@@ -288,7 +332,15 @@ class Receptionist {
     const next: AgentState = { ...s, slot, offeredSlots: undefined, offeredDates: undefined };
     const name = s.name ?? this.d.customerName;
     if (s.intent === "book" && !name) {
-      return { reply: `¡Excelente elección! ¿A nombre de quién agendo la cita?`, state: { ...next, step: "name" } };
+      return {
+        reply: this.pick(
+          `¡Excelente elección! ¿A nombre de quién agendo la cita?`,
+          `¡Perfecto! ¿A nombre de quién la dejo?`,
+          `¡Súper! Para reservarla, ¿me dices tu nombre completo?`,
+          `¡Muy bien! ¿A nombre de quién agendo?`,
+        ),
+        state: { ...next, step: "name" },
+      };
     }
     return this.summary({ ...next, name });
   }
@@ -296,7 +348,10 @@ class Receptionist {
   private onName(text: string, s: AgentState) {
     const name = parseName(text);
     if (!name) {
-      return Promise.resolve({ reply: `¿Me compartes tu nombre completo, por favor?`, state: s });
+      return Promise.resolve({
+        reply: this.pick(`¿Me compartes tu nombre completo, por favor?`, `¿Cómo es tu nombre completo?`, `Para la reserva necesito tu nombre y apellido 🙂`),
+        state: s,
+      });
     }
     return Promise.resolve({ ...this.summary({ ...s, name }), customerName: name });
   }
@@ -308,7 +363,7 @@ class Receptionist {
       reply:
         `${verb} *${svc.name}* para *${this.when(s.slot!)}*` +
         (s.intent === "book" ? ` a nombre de *${s.name}*` : "") +
-        `.\n\n¿Confirmo? (sí / no)`,
+        `.\n\n${this.pick("¿Confirmo? (sí / no)", "¿Te la confirmo? (sí / no)", "¿Está bien así? (sí / no)")}`,
       state: { ...s, step: "confirm" },
     };
   }
@@ -316,7 +371,11 @@ class Receptionist {
   private async onConfirm(text: string, s: AgentState, intents: Set<string>): Promise<AgentResult> {
     if (intents.has("no")) {
       return {
-        reply: `Sin problema. ¿Qué día u hora prefieres entonces?`,
+        reply: this.pick(
+          `Sin problema. ¿Qué día u hora prefieres entonces?`,
+          `Tranquilo, lo ajustamos. ¿Qué día u hora te sirve más?`,
+          `Dale, buscamos otra opción. ¿Qué día u hora prefieres?`,
+        ),
         state: { ...s, step: "date", slot: undefined, date: undefined },
       };
     }
@@ -330,7 +389,11 @@ class Receptionist {
       if (s.intent === "reschedule" && s.appointmentId) {
         const apt = await this.d.reschedule(s.appointmentId, s.slot!);
         return {
-          reply: `Listo ✅ Tu cita de *${svc.name}* quedó para *${this.when(apt.start)}*. Te enviaré un recordatorio antes.`,
+          reply: this.pick(
+            `Listo ✅ Tu cita de *${svc.name}* quedó para *${this.when(apt.start)}*. Te enviaré un recordatorio antes.`,
+            `¡Hecho! Moví tu *${svc.name}*: ahora quedó para *${this.when(apt.start)}* ✅`,
+            `Perfecto, tu cita de *${svc.name}* ahora quedó para *${this.when(apt.start)}*. Te recuerdo antes 😉`,
+          ),
           state: IDLE,
           event: "rescheduled",
         };
@@ -348,8 +411,13 @@ class Receptionist {
         : "";
       return {
         reply:
-          `¡Cita agendada! ✅\n\n*${svc.name}*${who ? ` con ${who}` : ""}\n${this.when(apt.start)}${this.d.settings.address ? `\n${this.d.settings.address}` : ""}` +
-          `${deposit}\n\nTe escribiré ${this.d.settings.reminderHoursBefore} horas antes para confirmar. Si necesitas cambiarla, solo dímelo.`,
+          `${this.pick("¡Cita agendada! ✅", "¡Listo, quedó agendada! ✅", "¡Tu cita está agendada! 🎉")}\n\n*${svc.name}*${who ? ` con ${who}` : ""}\n${this.when(apt.start)}${this.d.settings.address ? `\n${this.d.settings.address}` : ""}` +
+          `${deposit}\n\n` +
+          this.pick(
+            `Te escribiré ${this.d.settings.reminderHoursBefore} horas antes para confirmar. Si necesitas cambiarla, solo dímelo.`,
+            `Te mando un recordatorio ${this.d.settings.reminderHoursBefore} horas antes. Si algo cambia, me escribes y la movemos.`,
+            `${this.d.settings.reminderHoursBefore} horas antes te escribo para confirmar. ¡Te esperamos!`,
+          ),
         state: IDLE,
         event: "booked",
         customerName: s.name,
@@ -357,7 +425,7 @@ class Receptionist {
     } catch (err) {
       if (err instanceof BookingError && err.code === "slot_taken") {
         const res = await this.advance({ ...s, slot: undefined }, "");
-        return { ...res, reply: `Uy, alguien acaba de tomar ese horario 😅 ${res.reply}` };
+        return { ...res, reply: `${this.pick("Uy, alguien acaba de tomar ese horario 😅", "Ay, ese horario se acaba de ocupar 😅", "Justo alguien tomó ese espacio 🙈")} ${res.reply}` };
       }
       throw err;
     }
@@ -369,7 +437,10 @@ class Receptionist {
     const upcoming = await this.d.upcoming();
     if (!upcoming.length) {
       return {
-        reply: `No encuentro citas próximas a tu nombre. ¿Quieres agendar una nueva?`,
+        reply: this.pick(
+          `No encuentro citas próximas a tu nombre. ¿Quieres agendar una nueva?`,
+          `No veo citas pendientes a tu nombre. ¿Te ayudo a agendar una?`,
+        ),
         state: IDLE,
       };
     }
@@ -400,19 +471,30 @@ class Receptionist {
     }
     const base: AgentState = { step: "date", intent, appointmentId: apt.id, serviceId: apt.serviceId };
     const res = await this.askDate(base, svc ?? this.services[0]);
-    return { ...res, reply: `Movamos tu cita de *${svc?.name}* (${this.when(apt.start)}). ${res.reply.split(". ").slice(1).join(". ") || res.reply}` };
+    const intro = this.pick(
+      `Movamos tu cita de *${svc?.name}* (${this.when(apt.start)}).`,
+      `Claro, cambiemos tu *${svc?.name}* de ${this.when(apt.start)}.`,
+      `Listo, busquemos otro horario para tu *${svc?.name}* (hoy está ${this.when(apt.start)}).`,
+    );
+    return { ...res, reply: `${intro}\n\n${res.reply}` };
   }
 
   private async onConfirmCancel(s: AgentState, intents: Set<string>): Promise<AgentResult> {
     if (intents.has("yes") && s.appointmentId) {
       const apt = await this.d.cancel(s.appointmentId);
       return {
-        reply: `Tu cita del ${formatDateEs(this.local(apt.start).date)} quedó cancelada. Si quieres, te ayudo a buscar otro horario 🙂`,
+        reply: this.pick(
+          `Tu cita del ${formatDateEs(this.local(apt.start).date)} quedó cancelada. Si quieres, te ayudo a buscar otro horario 🙂`,
+          `Listo, cancelé tu cita del ${formatDateEs(this.local(apt.start).date)}. Cuando quieras agendamos otra 🙂`,
+          `Hecho, tu cita del ${formatDateEs(this.local(apt.start).date)} quedó cancelada. ¿Te busco otro día?`,
+        ),
         state: IDLE,
         event: "cancelled",
       };
     }
-    if (intents.has("no")) return { reply: `Perfecto, tu cita sigue en pie 👍`, state: IDLE };
+    if (intents.has("no")) {
+      return { reply: this.pick(`Perfecto, tu cita sigue en pie 👍`, `¡Bien! La dejamos tal cual 👍`, `Listo, no la cancelo. ¡Te esperamos!`), state: IDLE };
+    }
     return { reply: `¿Cancelo la cita? Responde *sí* o *no*.`, state: s };
   }
 
@@ -450,7 +532,10 @@ class Receptionist {
   }
 
   private servicesText() {
-    return `Estos son nuestros servicios:\n\n${this.servicesList()}\n\n¿Quieres agendar alguno?`;
+    return (
+      `${this.pick("Estos son nuestros servicios:", "Te cuento lo que ofrecemos:", "Mira nuestros servicios y precios:")}\n\n${this.servicesList()}\n\n` +
+      this.pick("¿Quieres agendar alguno?", "¿Te agendo alguno?", "Si alguno te interesa, te busco horario 😊")
+    );
   }
 
   private hoursText() {
@@ -460,7 +545,7 @@ class Receptionist {
       const x = h[d];
       return `${day}: ${x ? `${formatTimeEs(x.open)} – ${formatTimeEs(x.close)}` : "cerrado"}`;
     });
-    return `Nuestro horario:\n\n${lines.join("\n")}\n\nPor aquí agendo las 24 horas 😉`;
+    return `Nuestro horario:\n\n${lines.join("\n")}\n\n${this.pick("Por aquí agendo las 24 horas 😉", "Pero por este chat puedes agendar a cualquier hora 😉", "Y por aquí te atiendo 24/7 para agendar.")}`;
   }
 
   private numbered(items: string[]) {

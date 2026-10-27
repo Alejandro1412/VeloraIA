@@ -16,6 +16,7 @@ function fakeDeps(initial: Appointment[] = [], customerName?: string) {
   const agenda = [...initial];
   const deps: AgentDeps = {
     now: NOW,
+    random: () => 0,
     settings: DEFAULT_SETTINGS,
     services: DEFAULT_SERVICES,
     customerName,
@@ -155,4 +156,19 @@ test("handles closed days, info questions and handoff", async () => {
   assert.match((await chat(["cuánto cuesta el blanqueamiento"], deps)).replies[0], /450/);
   const human = await respond("quiero hablar con una persona", { step: "idle", intent: null }, deps);
   assert.equal(human.handoff, true);
+});
+
+test("varies its wording but always completes the booking", async () => {
+  const seen = new Set<string>();
+  for (let i = 0; i < 12; i++) {
+    const { deps, agenda } = fakeDeps();
+    const values = [0.1, 0.5, 0.9, 0.3, 0.7].map((v) => (v + i * 0.37) % 1);
+    let k = 0;
+    deps.random = () => values[k++ % values.length];
+    const { replies, state } = await chat(["Hola, quiero una limpieza mañana a las 10", "Ana Gómez", "sí"], deps);
+    seen.add(replies[0]);
+    assert.equal(state.step, "idle");
+    assert.equal(agenda.length, 1, replies.join(" / "));
+  }
+  assert.ok(seen.size >= 3, `only ${seen.size} phrasings`);
 });
