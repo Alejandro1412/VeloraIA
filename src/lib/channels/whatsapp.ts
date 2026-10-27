@@ -30,6 +30,26 @@ export function sendText(to: string, text: string, fromNumberId?: string) {
 }
 
 /**
+ * Up to three quick-reply buttons. Only valid inside the 24-hour window after
+ * the customer's last message; outside it, use an approved template.
+ * The customer's tap arrives as a normal message with the button's title.
+ */
+export function sendButtons(to: string, body: string, buttons: { id: string; title: string }[], fromNumberId?: string) {
+  return post(
+    {
+      to: to.replace(/\D/g, ""),
+      type: "interactive",
+      interactive: {
+        type: "button",
+        body: { text: body.slice(0, 1024) },
+        action: { buttons: buttons.slice(0, 3).map((b) => ({ type: "reply", reply: { id: b.id, title: b.title.slice(0, 20) } })) },
+      },
+    },
+    fromNumberId,
+  );
+}
+
+/**
  * Template messages are required to start a conversation outside the
  * 24-hour customer service window (e.g. appointment reminders).
  */

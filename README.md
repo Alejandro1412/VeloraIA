@@ -12,6 +12,11 @@ Un producto de **IONEX**. Velora contesta WhatsApp y llamadas las 24 horas, agen
 | Invitaciones y recuperación | `/invitacion/<token>`, `/recuperar` | Enlaces de un solo uso para sumar al equipo (rol "Equipo") y restablecer la contraseña por correo. |
 | Anticipos y suscripción | `/pagar/...`, `POST /api/wompi/webhook` | Wompi: anticipos con las llaves de cada negocio y cobro mensual de IONEX, con firma verificada e idempotencia. |
 | Calendario | `/api/calendar/<token>.ics` | Feed iCalendar para suscribirse desde Google Calendar, Outlook o Apple (opcional `?staff=`). |
+| Cita del cliente | `/cita/<negocio>/<cita>/<firma>` | Enlace personal (firmado) para confirmar, mover o cancelar sin escribir. Va en la confirmación y en el recordatorio, que además trae botones de WhatsApp. |
+| Encuesta | `/opinion/<negocio>/<cita>/<firma>` | 1–5 estrellas tras la cita. Con 4–5 invita a reseñar en Google; con 1–3 pide el comentario y avisa al dueño. |
+| Informe mensual | `/app/informe` | Citas, ingresos, inasistencia, lo que agendó la recepcionista y fuera de horario. Se envía por correo el día 1. |
+| Campañas | `/app/campanas` | Mensajes a clientes inactivos (3, 6 o 12 meses), por WhatsApp o con enlaces listos para enviar a mano. |
+| Asistente inicial | `/app/bienvenida` | Configuración guiada al registrarse: negocio, horario, servicios, equipo y enlace. |
 | Botón para sitios web | `/widget.js` | `<script src=".../widget.js" data-business="<id>" async>` abre la reserva en un panel flotante. |
 | Página de reservas | `/reservar/<id>` | Enlace público de cada negocio para que sus clientes agenden con Sofía. |
 | Chat web | `POST /api/chat` | El mismo agente que atiende WhatsApp y voz. |

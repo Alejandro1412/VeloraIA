@@ -169,6 +169,39 @@ export function buildDemoData(now: Date, settings = DEFAULT_SETTINGS, services =
     }
   }
 
+  // Happy (and a few lukewarm) ratings on past visits.
+  for (const apt of appointments) {
+    if (apt.status === "completed" && rand() < 0.45) {
+      const r = rand();
+      apt.rating = r < 0.62 ? 5 : r < 0.88 ? 4 : 3;
+      apt.ratedAt = apt.end;
+    }
+  }
+
+  // Customers who stopped coming months ago: the audience for win-back campaigns.
+  const dormant = ["Gloria Pineda", "Hernán Castaño", "Lucía Ospina", "Ricardo Mejía", "Paola Cárdenas", "Jorge Villa", "Natalia Arango", "Esteban Rojas"];
+  dormant.forEach((name, i) => {
+    const phone = `+57301${String(2000000 + i * 4243).slice(0, 7)}`;
+    const id = `c_${phone.slice(1)}`;
+    const date = addDays(today, -(110 + i * 27));
+    const start = localToUtc(date, i % 2 ? "10:00" : "15:30", settings.utcOffsetMinutes);
+    const svc = services[i % services.length];
+    customers.push({ id, name, phone, createdAt: new Date(start.getTime() - 30 * 86_400_000).toISOString() });
+    appointments.push({
+      id: `apt_old_${i}`,
+      serviceId: svc.id,
+      customerId: id,
+      start: start.toISOString(),
+      end: new Date(start.getTime() + svc.durationMinutes * 60_000).toISOString(),
+      status: "completed",
+      source: i % 3 ? "whatsapp" : "web",
+      notes: "",
+      reminderSentAt: null,
+      createdAt: new Date(start.getTime() - 3 * 86_400_000).toISOString(),
+      rating: 5,
+    });
+  });
+
   const minutesAgo = (m: number) => new Date(now.getTime() - m * 60_000).toISOString();
   const tomorrow = addDays(today, 1);
   const chats: { customer: Customer; lines: [Message["role"], string, number][] }[] = [

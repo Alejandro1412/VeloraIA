@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { listBusinesses } from "@/lib/accounts";
-import { sendDueReminders, sendReviewRequests } from "@/lib/reminders";
+import { sendDueReminders, sendSurveys } from "@/lib/reminders";
+import { sendMonthlyReport } from "@/lib/report";
 import { withBusiness } from "@/lib/tenant";
 
 /** Called by Vercel Cron (see vercel.json). Protected by CRON_SECRET. */
@@ -13,7 +14,7 @@ export async function GET(req: NextRequest) {
   const results: Record<string, unknown> = {};
   for (const b of businesses) {
     try {
-      results[b.id] = await withBusiness(b.id, async () => ({ reminders: await sendDueReminders(), reviews: await sendReviewRequests() }));
+      results[b.id] = await withBusiness(b.id, async () => ({ reminders: await sendDueReminders(), surveys: await sendSurveys(), report: await sendMonthlyReport() }));
     } catch (err) {
       results[b.id] = { error: (err as Error).message };
     }

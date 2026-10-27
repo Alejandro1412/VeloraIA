@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { clsx } from "clsx";
 import {
   assignStaffAction,
+  cancelSeriesAction,
   createAppointmentAction,
   rescheduleAction,
   setDepositAction,
@@ -30,6 +31,10 @@ export interface BoardAppointment {
   customerPhone: string;
   staffId?: string;
   deposit?: { amount: number; status: "pending" | "paid" | "waived" };
+  series?: { id: string; index: number; total: number };
+  rating?: number;
+  manageUrl: string;
+  surveyUrl: string;
 }
 
 export interface BoardStaff {
@@ -44,7 +49,7 @@ interface Props {
   appointments: BoardAppointment[];
   startHour: number;
   endHour: number;
-  services: { id: string; name: string; durationMinutes: number }[];
+  services: { id: string; name: string; durationMinutes: number; sessions: number }[];
   today: string;
   openNew: boolean;
   staff: BoardStaff[];
@@ -103,6 +108,12 @@ export function AgendaBoard(props: Props) {
   const [newOpen, setNewOpen] = useState(props.openNew);
   const [showCancelled, setShowCancelled] = useState(false);
   const [staffFilter, setStaffFilter] = useState("");
+  const [toast, setToast] = useState<string | null>(null);
+  useEffect(() => {
+    if (!toast) return;
+    const id = window.setTimeout(() => setToast(null), 6000);
+    return () => window.clearTimeout(id);
+  }, [toast]);
   const staffById = useMemo(() => new Map(props.staff.map((s) => [s.id, s])), [props.staff]);
   const hours = Array.from({ length: props.endHour - props.startHour }, (_, i) => props.startHour + i);
   const total = (props.endHour - props.startHour) * 60;
@@ -203,7 +214,10 @@ export function AgendaBoard(props: Props) {
                     ) : (
                       <>
                         <span className="tabular block opacity-80">{a.start}</span>
-                        <span className="block truncate font-semibold">{a.customerName}</span>
+                        <span className="block truncate font-semibold">
+                          {a.customerName}
+                          {a.series && <span className="ml-1 font-normal opacity-80">· {a.series.index}/{a.series.total}</span>}
+                        </span>
                         <span className="block truncate opacity-80">{a.serviceName}</span>
                       </>
                     )}
@@ -219,7 +233,35 @@ export function AgendaBoard(props: Props) {
       <AnimatePresence>
         {selected && <AppointmentDrawer key={selected.id} appointment={selected} onClose={() => setSelected(null)} today={props.today} staff={props.staff} />}
       </AnimatePresence>
-      <NewAppointmentDialog open={newOpen} onClose={() => setNewOpen(false)} services={props.services} today={props.today} staff={props.staff} />
+      <NewAppointmentDialog
+        open={newOpen}
+        onClose={() => {
+          setNewOpen(false);
+          // Drop ?new=1 so a refresh doesn't reopen the dialog.
+          const url = new URL(window.location.href);
+          if (url.searchParams.has("new")) {
+            url.searchParams.delete("new");
+            window.history.replaceState(window.history.state, "", url.pathname + url.search);
+          }
+        }}
+        onDone={(m) => setToast(m)}
+        services={props.services}
+        today={props.today}
+        staff={props.staff}
+      />
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            role="status"
+            initial={{ opacity: 0, y: 24, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 12 }}
+            className="fixed bottom-24 left-1/2 z-50 w-[min(520px,calc(100vw-24px))] -translate-x-1/2 rounded-2xl bg-night px-5 py-4 text-[15px] text-white shadow-2xl lg:bottom-8"
+          >
+            {toast}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -357,6 +399,26 @@ function AppointmentDrawer({ appointment: a, onClose, today, staff }: { appointm
                 </dd>
               </>
             )}
+            {a.series && (
+              <>
+                <dt className="text-muted">Sesión</dt>
+                <dd>
+                  {a.series.index} de {a.series.total}
+                  <span className="mt-1 block h-1.5 overflow-hidden rounded-full bg-line-soft">
+                    <span className="block h-full rounded-full bg-gradient-to-r from-cobalt to-mint" style={{ width: `${(a.series.index / a.series.total) * 100}%` }} />
+                  </span>
+                </dd>
+              </>
+            )}
+            {a.rating && (
+              <>
+                <dt className="text-muted">Opinión</dt>
+                <dd className="text-amber" aria-label={`${a.rating} de 5`}>
+                  {"★".repeat(a.rating)}
+                  <span className="text-line">{"★".repeat(5 - a.rating)}</span>
+                </dd>
+              </>
+            )}
             <dt className="text-muted">Canal</dt>
             <dd>{CHANNEL_LABEL[a.source]}</dd>
             <dt className="text-muted">Celular</dt>
@@ -376,6 +438,25 @@ function AppointmentDrawer({ appointment: a, onClose, today, staff }: { appointm
               </>
             )}
           </dl>
+
+          <CustomerLinks a={a} phoneDigits={phoneDigits} />
+
+          {a.series && (a.status === "booked" || a.status === "confirmed") && a.series.index < a.series.total && (
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() => {
+                if (confirm(`¿Cancelar esta sesión y las ${a.series!.total - a.series!.index} siguientes?`))
+                  start(async () => {
+                    await cancelSeriesAction(a.series!.id, a.series!.index);
+                    onClose();
+                  });
+              }}
+              className="mt-4 text-sm text-rose hover:underline"
+            >
+              Cancelar esta y las siguientes sesiones
+            </button>
+          )}
 
           {moving && (
             <div className="mt-6 rounded-2xl bg-porcelain p-4">
@@ -447,9 +528,11 @@ function NewAppointmentDialog({
   services,
   today,
   staff,
+  onDone,
 }: {
   open: boolean;
   onClose: () => void;
+  onDone: (message: string) => void;
   services: Props["services"];
   today: string;
   staff: BoardStaff[];
@@ -459,6 +542,8 @@ function NewAppointmentDialog({
   const [serviceId, setServiceId] = useState(services[0]?.id ?? "");
   const [date, setDate] = useState(today);
   const [staffId, setStaffId] = useState("");
+  const [repeat, setRepeat] = useState(0);
+  const [sessions, setSessions] = useState(4);
   const [slots, setSlots] = useState<string[] | null>(null);
   const eligible = staff.filter((s) => !s.serviceIds.length || s.serviceIds.includes(serviceId));
   const chosenStaff = eligible.some((s) => s.id === staffId) ? staffId : "";
@@ -484,8 +569,9 @@ function NewAppointmentDialog({
     if (state?.ok) {
       formRef.current?.reset();
       onClose();
+      if (state.message) onDone(state.message);
     }
-  }, [state, onClose]);
+  }, [state, onClose, onDone]);
 
   const timeOptions = useMemo(() => slots ?? [], [slots]);
 
@@ -508,10 +594,24 @@ function NewAppointmentDialog({
             <label htmlFor="na-service" className="label">
               Servicio
             </label>
-            <select id="na-service" name="serviceId" value={serviceId} onChange={(e) => (setSlots(null), setServiceId(e.target.value))} className="field">
+            <select
+              id="na-service"
+              name="serviceId"
+              value={serviceId}
+              onChange={(e) => {
+                setSlots(null);
+                setServiceId(e.target.value);
+                const pkg = services.find((s) => s.id === e.target.value)?.sessions ?? 1;
+                if (pkg > 1) {
+                  setRepeat((r) => r || 1);
+                  setSessions(pkg);
+                }
+              }}
+              className="field"
+            >
               {services.map((s) => (
                 <option key={s.id} value={s.id}>
-                  {s.name} ({s.durationMinutes} min)
+                  {s.name} ({s.durationMinutes} min{s.sessions > 1 ? ` · paquete de ${s.sessions}` : ""})
                 </option>
               ))}
             </select>
@@ -569,6 +669,44 @@ function NewAppointmentDialog({
             </label>
             <input id="na-phone" name="phone" type="tel" required placeholder="+57 300 123 4567" className="field" />
           </div>
+          <fieldset className="rounded-2xl border border-dashed border-line p-4 sm:col-span-2">
+            <legend className="px-1 text-sm font-medium text-ink-2">Repetir (tratamientos y paquetes)</legend>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <label htmlFor="na-repeat" className="label">
+                  Frecuencia
+                </label>
+                <select id="na-repeat" name="repeatWeeks" value={repeat} onChange={(e) => setRepeat(Number(e.target.value))} className="field">
+                  <option value={0}>Solo esta vez</option>
+                  <option value={1}>Cada semana</option>
+                  <option value={2}>Cada 2 semanas</option>
+                  <option value={4}>Cada 4 semanas</option>
+                  <option value={8}>Cada 8 semanas</option>
+                </select>
+              </div>
+              <div>
+                <label htmlFor="na-sessions" className="label">
+                  Número de sesiones
+                </label>
+                <input
+                  id="na-sessions"
+                  name="sessions"
+                  type="number"
+                  min={2}
+                  max={52}
+                  value={repeat ? sessions : 1}
+                  disabled={!repeat}
+                  onChange={(e) => setSessions(Number(e.target.value))}
+                  className="field"
+                />
+              </div>
+            </div>
+            {repeat > 0 && (
+              <p className="mt-2 text-xs text-muted">
+                Se agendan {sessions} citas a la misma hora. Si alguna fecha está llena, te avisamos cuál.
+              </p>
+            )}
+          </fieldset>
           <div className="sm:col-span-2">
             <label htmlFor="na-notes" className="label">
               Notas (opcional)
@@ -599,5 +737,49 @@ function NewAppointmentDialog({
         </div>
       </form>
     </dialog>
+  );
+}
+
+/* ------------------------------ customer links ------------------------------ */
+
+function CustomerLinks({ a, phoneDigits }: { a: BoardAppointment; phoneDigits: string }) {
+  const [copied, setCopied] = useState<string | null>(null);
+  const copy = async (url: string, key: string) => {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(key);
+      window.setTimeout(() => setCopied(null), 1800);
+    } catch {
+      window.prompt("Copia este enlace", url);
+    }
+  };
+  const upcoming = a.status === "booked" || a.status === "confirmed";
+  const items = [
+    upcoming && { key: "cita", label: "Enlace para confirmar o mover", url: a.manageUrl, msg: `Hola ${a.customerName.split(" ")[0]}, aquí puedes confirmar o mover tu cita: ${a.manageUrl}` },
+    a.status === "completed" && { key: "opinion", label: "Encuesta de satisfacción", url: a.surveyUrl, msg: `Hola ${a.customerName.split(" ")[0]}, ¿cómo te fue? Califícanos aquí: ${a.surveyUrl}` },
+  ].filter(Boolean) as { key: string; label: string; url: string; msg: string }[];
+  if (!items.length) return null;
+  return (
+    <div className="mt-6 space-y-2">
+      <p className="text-sm font-medium text-ink-2">Para enviarle al cliente</p>
+      {items.map((it) => (
+        <div key={it.key} className="flex flex-wrap items-center gap-2 rounded-2xl border border-line bg-porcelain/50 px-3 py-2.5">
+          <span className="min-w-0 flex-1 text-sm">{it.label}</span>
+          <button type="button" onClick={() => copy(it.url, it.key)} className="rounded-full px-3 py-1 text-sm text-cobalt hover:bg-cobalt-soft">
+            {copied === it.key ? "¡Copiado!" : "Copiar"}
+          </button>
+          {phoneDigits && (
+            <a
+              href={`https://wa.me/${phoneDigits}?text=${encodeURIComponent(it.msg)}`}
+              target="_blank"
+              rel="noreferrer"
+              className="rounded-full bg-mint px-3 py-1 text-sm font-medium text-white hover:brightness-110"
+            >
+              WhatsApp
+            </a>
+          )}
+        </div>
+      ))}
+    </div>
   );
 }

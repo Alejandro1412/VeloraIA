@@ -10,7 +10,9 @@ import {
   saveAppointment,
   saveConversation,
 } from "./data/store";
-import { sendTemplate, sendText, whatsappConfigured } from "./channels/whatsapp";
+import { sendButtons, sendTemplate, sendText, whatsappConfigured } from "./channels/whatsapp";
+import { appointmentLink, surveyLink } from "./links";
+import { currentBusinessId } from "./tenant";
 
 export interface ReminderRun {
   checked: number;
@@ -43,16 +45,33 @@ export async function sendDueReminders(now = new Date()): Promise<ReminderRun> {
     const local = localParts(apt.start, settings.utcOffsetMinutes);
     const day = local.date === addDays(today, 1) ? "mañana" : formatDateEs(local.date);
     const first = customer.name.split(" ")[0] || "";
+    const link = appointmentLink(await currentBusinessId(), apt.id);
     const text =
       `Hola ${first} 👋 Te recordamos tu cita de *${service?.name ?? "servicio"}* ${day} a las *${formatTimeEs(local.time)}* en ${settings.name}.\n\n` +
-      `Responde *CONFIRMO* para confirmar, o escríbenos si necesitas moverla.`;
+      `Toca un botón para confirmarla o moverla. También puedes gestionarla aquí: ${link}`;
 
     try {
       const fromNumber = settings.whatsappPhoneNumberId || undefined;
       if (whatsappConfigured() && (fromNumber || process.env.WHATSAPP_PHONE_NUMBER_ID)) {
         const template = process.env.WHATSAPP_REMINDER_TEMPLATE;
         if (template) await sendTemplate(customer.phone, template, [first, service?.name ?? "servicio", day, formatTimeEs(local.time)], "es", fromNumber);
-        else await sendText(customer.phone, text, fromNumber);
+        else {
+          // Buttons only work inside the 24 h window; fall back to plain text with the link.
+          try {
+            await sendButtons(
+              customer.phone,
+              text,
+              [
+                { id: `confirm:${apt.id}`, title: "Confirmar ✅" },
+                { id: `move:${apt.id}`, title: "Reprogramar 🔁" },
+                { id: `cancel:${apt.id}`, title: "Cancelar" },
+              ],
+              fromNumber,
+            );
+          } catch {
+            await sendText(customer.phone, text, fromNumber);
+          }
+        }
       } else {
         run.skipped++;
         continue;
@@ -75,18 +94,18 @@ export async function sendDueReminders(now = new Date()): Promise<ReminderRun> {
 }
 
 /**
- * Asks customers seen in the last two days for a Google review, once per
- * appointment. Needs the business' review link and WhatsApp.
+ * Satisfaction survey for customers seen in the last two days, once per
+ * appointment. Happy customers (4–5 ★) are then invited to review on Google;
+ * unhappy ones can tell the owner privately.
  */
-export async function sendReviewRequests(now = new Date()): Promise<ReminderRun> {
+export async function sendSurveys(now = new Date()): Promise<ReminderRun> {
   const settings = await getSettings();
   const run: ReminderRun = { checked: 0, sent: 0, skipped: 0, failed: [] };
-  const url = settings.googleReviewUrl;
   const fromNumber = settings.whatsappPhoneNumberId || undefined;
-  if (!url || !whatsappConfigured() || !(fromNumber || process.env.WHATSAPP_PHONE_NUMBER_ID)) return run;
+  if (!whatsappConfigured() || !(fromNumber || process.env.WHATSAPP_PHONE_NUMBER_ID)) return run;
 
   const items = await listAppointments({ from: new Date(now.getTime() - 48 * 3_600_000).toISOString(), to: now.toISOString() });
-  const due = items.filter((a) => a.status === "completed" && !a.reviewRequestedAt);
+  const due = items.filter((a) => a.status === "completed" && !a.surveySentAt && !a.reviewRequestedAt && !a.rating);
   run.checked = due.length;
   for (const apt of due) {
     const customer = await getCustomer(apt.customerId);
@@ -95,12 +114,13 @@ export async function sendReviewRequests(now = new Date()): Promise<ReminderRun>
       continue;
     }
     const first = customer.name.split(" ")[0] || "";
-    const text = `Hola ${first}, gracias por visitarnos en ${settings.name} 💙 ¿Nos ayudas con una reseña de 30 segundos? Nos ayuda muchísimo: ${url}`;
+    const url = surveyLink(await currentBusinessId(), apt.id);
+    const text = `Hola ${first}, gracias por visitarnos en ${settings.name} 💙 ¿Cómo te fue? Califícanos en 10 segundos: ${url}`;
     try {
-      const template = process.env.WHATSAPP_REVIEW_TEMPLATE;
+      const template = process.env.WHATSAPP_SURVEY_TEMPLATE;
       if (template) await sendTemplate(customer.phone, template, [first, settings.name, url], "es", fromNumber);
       else await sendText(customer.phone, text, fromNumber);
-      await saveAppointment({ ...apt, reviewRequestedAt: new Date().toISOString() });
+      await saveAppointment({ ...apt, surveySentAt: new Date().toISOString() });
       run.sent++;
     } catch (err) {
       run.failed.push({ id: apt.id, error: (err as Error).message });

@@ -23,9 +23,10 @@ export function ServicesEditor({ services }: { services: Service[] }) {
                 <div className="min-w-0">
                   <p className={clsx("font-medium", !s.active && "text-muted line-through")}>{s.name}</p>
                   <p className="truncate text-sm text-muted">{s.description || "Sin descripción"}</p>
-                  {(!!s.depositAmount || !!s.bufferMinutes || !!s.days?.length) && (
+                  {(!!s.depositAmount || !!s.bufferMinutes || !!s.days?.length || (s.sessions ?? 1) > 1) && (
                     <p className="mt-1 flex flex-wrap gap-1.5 text-xs">
                       {!!s.depositAmount && <span className="rounded-full bg-mint-soft px-2 py-0.5 text-mint-ink">Anticipo {formatMoney(s.depositAmount)}</span>}
+                      {(s.sessions ?? 1) > 1 && <span className="rounded-full bg-cobalt-soft px-2 py-0.5 text-cobalt">Paquete de {s.sessions} sesiones</span>}
                       {!!s.bufferMinutes && <span className="rounded-full bg-line-soft px-2 py-0.5 text-ink-2">+{s.bufferMinutes} min descanso</span>}
                       {!!s.days?.length && (
                         <span className="rounded-full bg-line-soft px-2 py-0.5 text-ink-2">{DAYS.filter(([d]) => s.days!.includes(d)).map(([, l]) => l).join(" · ")}</span>
@@ -121,6 +122,12 @@ function ServiceForm({ service, onDone }: { service?: Service; onDone: () => voi
         </label>
         <input id={`${id}-dep`} name="depositAmount" type="number" min={0} step={1000} defaultValue={service?.depositAmount ?? 0} className="field" />
       </div>
+      <div className="sm:col-span-2">
+        <label htmlFor={`${id}-ses`} className="label">
+          Sesiones del paquete
+        </label>
+        <input id={`${id}-ses`} name="sessions" type="number" min={1} max={52} defaultValue={service?.sessions ?? 1} className="field" />
+      </div>
       <fieldset className="sm:col-span-2">
         <legend className="label">Días en que se ofrece</legend>
         <div className="flex flex-wrap gap-1.5">
@@ -141,7 +148,7 @@ function ServiceForm({ service, onDone }: { service?: Service; onDone: () => voi
         </div>
       </fieldset>
       <p className="text-xs text-muted sm:col-span-4">
-        El anticipo se cobra con Wompi al agendar (conéctalo en Ajustes); con 0 no se cobra. El descanso bloquea tiempo para limpiar o preparar entre citas.
+        El anticipo se cobra con Wompi al agendar (conéctalo en Ajustes); con 0 no se cobra. El descanso bloquea tiempo para limpiar o preparar entre citas. Con un paquete de varias sesiones, al agendar desde la agenda se proponen todas de una vez.
       </p>
       <div className="flex flex-wrap items-center justify-between gap-3 sm:col-span-4">
         <label className="flex items-center gap-2 text-sm text-ink-2">

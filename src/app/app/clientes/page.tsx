@@ -27,16 +27,17 @@ const HELP = {
   ]
 };
 
-export default function CustomersPage() {
+export default function CustomersPage({ searchParams }: PageProps<"/app/clientes">) {
   return (
     <Suspense fallback={<PageSkeleton />}>
-      <Customers />
+      <Customers searchParams={searchParams} />
     </Suspense>
   );
 }
 
-async function Customers() {
+async function Customers({ searchParams }: { searchParams: PageProps<"/app/clientes">["searchParams"] }) {
   await requireSession();
+  const query = await searchParams;
   const [settings, customers, appointments, services, staff] = await Promise.all([
     getSettings(),
     listCustomers(),
@@ -72,6 +73,9 @@ async function Customers() {
             service: services.find((s) => s.id === a.serviceId)?.name ?? "Servicio",
             staff: staff.find((s) => s.id === a.staffId)?.name ?? "",
             status: a.status,
+            rating: a.rating,
+            feedback: a.feedback,
+            session: a.seriesTotal && a.seriesTotal > 1 ? `${a.seriesIndex}/${a.seriesTotal}` : undefined,
           };
         }),
       };
@@ -89,7 +93,7 @@ async function Customers() {
           </a>
         }
       />
-      <CustomersTable rows={rows} currency={settings.currency} />
+      <CustomersTable rows={rows} currency={settings.currency} openId={typeof query.c === "string" ? query.c : undefined} />
     </>
   );
 }

@@ -78,7 +78,7 @@ export async function registerAction(_: AuthState, form: FormData): Promise<Auth
     if (err instanceof AccountError) return { error: err.message, fields };
     throw err;
   }
-  redirect("/app/ajustes?bienvenida=1");
+  redirect("/app/bienvenida");
 }
 
 export async function demoAction() {

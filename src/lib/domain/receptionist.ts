@@ -23,6 +23,8 @@ export interface AgentDeps {
   book(input: { serviceId: string; start: string; name: string; staffId?: string }): Promise<Appointment>;
   /** Payment link for a pending deposit, when the business collects one. */
   paymentLink?(appointment: Appointment): string | null;
+  /** Personal link to confirm, move or cancel the appointment without chatting. */
+  manageLink?(appointment: Appointment): string | null;
   joinWaitlist?(input: { serviceId: string; date: string; name: string }): Promise<void>;
   reschedule(id: string, start: string): Promise<Appointment>;
   cancel(id: string): Promise<Appointment>;
@@ -417,7 +419,8 @@ class Receptionist {
             `Te escribiré ${this.d.settings.reminderHoursBefore} horas antes para confirmar. Si necesitas cambiarla, solo dímelo.`,
             `Te mando un recordatorio ${this.d.settings.reminderHoursBefore} horas antes. Si algo cambia, me escribes y la movemos.`,
             `${this.d.settings.reminderHoursBefore} horas antes te escribo para confirmar. ¡Te esperamos!`,
-          ),
+          ) +
+          (this.d.manageLink?.(apt) ? `\n\nTu cita, siempre a mano: ${this.d.manageLink(apt)}` : ""),
         state: IDLE,
         event: "booked",
         customerName: s.name,

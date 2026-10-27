@@ -19,15 +19,25 @@ export interface CustomerRow {
   spent: number;
   lastVisit: string | null;
   nextVisit: string | null;
-  history: { id: string; date: string; time: string; service: string; staff: string; status: AppointmentStatus }[];
+  history: {
+    id: string;
+    date: string;
+    time: string;
+    service: string;
+    staff: string;
+    status: AppointmentStatus;
+    rating?: number;
+    feedback?: string;
+    session?: string;
+  }[];
 }
 
 const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 
-export function CustomersTable({ rows, currency }: { rows: CustomerRow[]; currency: string }) {
+export function CustomersTable({ rows, currency, openId }: { rows: CustomerRow[]; currency: string; openId?: string }) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<"all" | "risk" | "upcoming">("all");
-  const [open, setOpen] = useState<CustomerRow | null>(null);
+  const [open, setOpen] = useState<CustomerRow | null>(() => rows.find((r) => r.id === openId) ?? null);
 
   const visible = useMemo(() => {
     const q = norm(query.trim());
@@ -215,8 +225,16 @@ function CustomerDrawer({ row, currency, onClose }: { row: CustomerRow; currency
                   </span>
                   <span className="text-muted">
                     {h.service}
+                    {h.session && ` · sesión ${h.session}`}
                     {h.staff && ` con ${h.staff}`}
                   </span>
+                  {h.rating && (
+                    <span className="mt-1 block text-amber" aria-label={`${h.rating} de 5 estrellas`}>
+                      {"★".repeat(h.rating)}
+                      <span className="text-line">{"★".repeat(5 - h.rating)}</span>
+                      {h.feedback && <span className="ml-2 text-ink-2 italic">“{h.feedback}”</span>}
+                    </span>
+                  )}
                 </span>
                 <StatusBadge status={h.status} />
               </li>

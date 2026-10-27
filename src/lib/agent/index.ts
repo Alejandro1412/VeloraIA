@@ -29,6 +29,7 @@ import {
   rescheduleAppointment,
 } from "../booking";
 import { llmEnabled, respondWithLlm } from "./llm";
+import { appointmentLink } from "../links";
 
 export interface IncomingMessage {
   conversationId: string;
@@ -102,6 +103,7 @@ export async function handleIncoming(msg: IncomingMessage): Promise<AgentReply> 
     slots: (serviceId, date, exclude, staffId) => getAvailability(serviceId, date, { excludeAppointmentId: exclude, staffId }),
     book: ({ serviceId, start, name, staffId }) =>
       bookAppointment({ serviceId, start, name: name || customerName || "Cliente", phone: msg.phone, source: msg.channel, staffId }),
+    manageLink: (apt) => appointmentLink(businessId, apt.id),
     paymentLink: (apt) => (apt.deposit?.status === "pending" ? `${siteUrl()}/pagar/${businessId}/${apt.id}` : null),
     joinWaitlist: async ({ serviceId, date, name }) => {
       await upsertCustomer(msg.phone, name);

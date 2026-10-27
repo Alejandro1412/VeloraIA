@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
     } else {
       const result = await signInWithGoogle(profile);
       user = result.user;
-      if (result.isNew) destination = "/app/ajustes?bienvenida=1";
+      if (result.isNew) destination = "/app/bienvenida";
     }
     await createSession({ userId: user.id, businessId: user.businessId, name: user.name, email: user.email, role: user.role });
     const res = NextResponse.redirect(new URL(destination, req.url));

@@ -61,7 +61,7 @@ async function describe(apt: Appointment) {
 }
 
 export async function onAppointmentEvent(
-  kind: "booked" | "rescheduled" | "cancelled",
+  kind: "booked" | "rescheduled" | "cancelled" | "confirmed",
   apt: Appointment,
   opts: { notifyOwner?: boolean } = {},
 ) {
@@ -69,7 +69,12 @@ export async function onAppointmentEvent(
     const d = await describe(apt);
     const fromCustomer = apt.source !== "manual";
     const href = `/app/agenda?week=${d.local.date}`;
-    const titles = { booked: "Nueva cita", rescheduled: "Cita reprogramada", cancelled: "Cita cancelada" } as const;
+    const titles = { booked: "Nueva cita", rescheduled: "Cita reprogramada", cancelled: "Cita cancelada", confirmed: "Cita confirmada" } as const;
+    if (kind === "confirmed") {
+      // Confirmations are good news: panel feed only, no email/WhatsApp noise.
+      await addNotification({ kind, title: `${titles[kind]}: ${d.when}`, body: d.line, href });
+      return;
+    }
     const shouldAlert = (kind === "booked" ? fromCustomer : true) && opts.notifyOwner !== false;
     if (shouldAlert) {
       await addNotification({ kind, title: `${titles[kind]}: ${d.when}`, body: d.line, href });
@@ -126,5 +131,20 @@ export async function onDepositPaid(apt: Appointment) {
     await alertOwner(`Anticipo pagado · ${d.when}`, [d.line], href);
   } catch (err) {
     console.error("[velora] deposit alert failed", err);
+  }
+}
+
+/** A customer rated their visit. Low scores reach the owner right away. */
+export async function onFeedback(apt: Appointment, rating: number, comment: string) {
+  try {
+    const d = await describe(apt);
+    const stars = "★".repeat(rating) + "☆".repeat(5 - rating);
+    const href = `/app/clientes?c=${apt.customerId}`;
+    await addNotification({ kind: "feedback", title: `${stars} ${d.customer?.name || "Cliente"}`, body: comment || d.line, href });
+    if (rating <= 3) {
+      await alertOwner(`Calificación baja (${rating}/5) · ${d.customer?.name || "Cliente"}`, [d.line, d.when, comment ? `“${comment}”` : "Sin comentario"], href);
+    }
+  } catch (err) {
+    console.error("[velora] feedback handling failed", err);
   }
 }

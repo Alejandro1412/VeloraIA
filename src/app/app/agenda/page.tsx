@@ -1,3 +1,4 @@
+import { appointmentLink, surveyLink } from "@/lib/links";
 import Link from "next/link";
 import { Suspense } from "react";
 import { requireSession } from "@/lib/auth";
@@ -40,7 +41,7 @@ export default function AgendaPage({ searchParams }: PageProps<"/app/agenda">) {
 const mondayOf = (date: string) => addDays(date, -((weekdayOf(date) + 6) % 7));
 
 async function Agenda({ searchParams }: { searchParams: PageProps<"/app/agenda">["searchParams"] }) {
-  await requireSession();
+  const session = await requireSession();
   const params = await searchParams;
   const ctx = await loadContext();
   const requested = typeof params.week === "string" && /^\d{4}-\d{2}-\d{2}$/.test(params.week) ? params.week : ctx.today;
@@ -62,6 +63,10 @@ async function Agenda({ searchParams }: { searchParams: PageProps<"/app/agenda">
     customerPhone: a.customer?.phone ?? "",
     staffId: a.staffId,
     deposit: a.deposit ? { amount: a.deposit.amount, status: a.deposit.status } : undefined,
+    series: a.seriesId && a.seriesTotal ? { id: a.seriesId, index: a.seriesIndex ?? 1, total: a.seriesTotal } : undefined,
+    rating: a.rating,
+    manageUrl: appointmentLink(session.businessId, a.id),
+    surveyUrl: surveyLink(session.businessId, a.id),
   }));
 
   const days = Array.from({ length: 7 }, (_, i) => addDays(monday, i)).filter(
@@ -103,7 +108,7 @@ async function Agenda({ searchParams }: { searchParams: PageProps<"/app/agenda">
         appointments={appointments}
         startHour={startHour}
         endHour={endHour}
-        services={ctx.services.filter((s) => s.active).map((s) => ({ id: s.id, name: s.name, durationMinutes: s.durationMinutes }))}
+        services={ctx.services.filter((s) => s.active).map((s) => ({ id: s.id, name: s.name, durationMinutes: s.durationMinutes, sessions: s.sessions ?? 1 }))}
         today={ctx.today}
         openNew={params.new === "1"}
         staff={staff.filter((s) => s.active).map((s) => ({ id: s.id, name: s.name, color: s.color, serviceIds: s.serviceIds }))}

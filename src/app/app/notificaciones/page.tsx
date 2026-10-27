@@ -45,6 +45,8 @@ const DOT: Record<string, string> = {
   handoff: "bg-night",
   deposit_paid: "bg-mint",
   waitlist: "bg-mint",
+  confirmed: "bg-mint",
+  feedback: "bg-amber",
 };
 
 async function Notifications() {

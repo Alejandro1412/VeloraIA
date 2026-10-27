@@ -12,7 +12,7 @@ import { PLANS, type PlanId } from "@/lib/billing";
 import { checkoutUrl, ionexWompi, subscriptionReference } from "@/lib/wompi";
 import { siteUrl } from "@/lib/site";
 import { BookingError } from "@/lib/domain/booking-errors";
-import { localToUtc } from "@/lib/domain/time";
+import { addDays, formatDateEs, localToUtc } from "@/lib/domain/time";
 import type { AppointmentStatus, DayHours } from "@/lib/domain/types";
 import {
   addMessage,
@@ -26,6 +26,9 @@ import {
   listStaff,
   markNotificationsRead,
   saveAppointment,
+  listAppointments,
+  saveCampaign,
+  listServices,
   saveClosure,
   saveConversation,
   saveCustomer,
@@ -33,7 +36,9 @@ import {
   saveSettings,
   saveStaff,
 } from "@/lib/data/store";
-import { sendText, whatsappConfigured } from "@/lib/channels/whatsapp";
+import { sendTemplate, sendText, whatsappConfigured } from "@/lib/channels/whatsapp";
+import { fillMessage, inactiveCustomers } from "@/lib/campaigns";
+import type { Campaign } from "@/lib/domain/types";
 
 export type ActionState = { ok?: boolean; error?: string; message?: string } | null;
 
@@ -75,6 +80,8 @@ const NewAppointment = z.object({
   notes: z.string().max(500).optional(),
   staffId: z.string().optional(),
   force: z.literal("on").optional(),
+  repeatWeeks: z.coerce.number().int().min(0).max(8).default(0),
+  sessions: z.coerce.number().int().min(1, "Mínimo 1 sesión").max(52, "Máximo 52 sesiones").default(1),
 });
 
 export async function createAppointmentAction(_: ActionState, form: FormData): Promise<ActionState> {
@@ -84,10 +91,10 @@ export async function createAppointmentAction(_: ActionState, form: FormData): P
   const d = parsed.data;
   const settings = await getSettings();
   const phone = d.phone.startsWith("+") ? d.phone : `+57${d.phone.replace(/\D/g, "")}`;
-  try {
-    await bookAppointment({
+  const book = (date: string) =>
+    bookAppointment({
       serviceId: d.serviceId,
-      start: localToUtc(d.date, d.time, settings.utcOffsetMinutes).toISOString(),
+      start: localToUtc(date, d.time, settings.utcOffsetMinutes).toISOString(),
       name: d.name,
       phone,
       source: "manual",
@@ -95,12 +102,40 @@ export async function createAppointmentAction(_: ActionState, form: FormData): P
       staffId: d.staffId || undefined,
       skipAvailabilityCheck: d.force === "on",
     });
+  let first;
+  try {
+    first = await book(d.date);
   } catch (err) {
     if (err instanceof BookingError) return { error: `${err.message}. Elige otra hora o marca “Agendar aunque se cruce”.` };
     throw err;
   }
+
+  // Recurring appointments / packages: same time every N weeks.
+  const total = d.repeatWeeks > 0 ? d.sessions : 1;
+  if (total === 1) {
+    refresh();
+    return { ok: true, message: "Cita agendada" };
+  }
+  const seriesId = `ser_${randomBytes(8).toString("hex")}`;
+  await saveAppointment({ ...first, seriesId, seriesIndex: 1, seriesTotal: total });
+  const skipped: string[] = [];
+  for (let i = 1; i < total; i++) {
+    const date = addDays(d.date, i * 7 * d.repeatWeeks);
+    try {
+      const apt = await book(date);
+      await saveAppointment({ ...apt, seriesId, seriesIndex: i + 1, seriesTotal: total });
+    } catch (err) {
+      if (!(err instanceof BookingError)) throw err;
+      skipped.push(formatDateEs(date));
+    }
+  }
   refresh();
-  return { ok: true, message: "Cita agendada" };
+  return {
+    ok: true,
+    message: skipped.length
+      ? `Se agendaron ${total - skipped.length} de ${total} sesiones. Sin espacio: ${skipped.join(", ")}.`
+      : `Listo: ${total} sesiones agendadas.`,
+  };
 }
 
 export async function rescheduleAction(id: string, date: string, time: string): Promise<ActionState> {
@@ -114,6 +149,16 @@ export async function rescheduleAction(id: string, date: string, time: string): 
   }
   refresh();
   return { ok: true };
+}
+
+/** Cancels this session and the following ones of a recurring series. */
+export async function cancelSeriesAction(seriesId: string, fromIndex: number): Promise<ActionState> {
+  await requireSession();
+  const all = await listAppointments();
+  const targets = all.filter((a) => a.seriesId === seriesId && (a.seriesIndex ?? 0) >= fromIndex && (a.status === "booked" || a.status === "confirmed"));
+  for (const a of targets) await setAppointmentStatus(a.id, "cancelled", { notify: false });
+  refresh();
+  return { ok: true, message: `${targets.length} sesiones canceladas` };
 }
 
 export async function assignStaffAction(id: string, staffId: string): Promise<ActionState> {
@@ -207,6 +252,7 @@ const ServiceInput = z.object({
   active: z.literal("on").optional(),
   bufferMinutes: z.coerce.number().int().min(0).max(240).default(0),
   depositAmount: z.coerce.number().min(0, "El anticipo no puede ser negativo").default(0),
+  sessions: z.coerce.number().int().min(1).max(52).default(1),
 });
 
 export async function saveServiceAction(_: ActionState, form: FormData): Promise<ActionState> {
@@ -229,6 +275,7 @@ export async function saveServiceAction(_: ActionState, form: FormData): Promise
     active: d.active === "on",
     bufferMinutes: d.bufferMinutes,
     depositAmount: d.depositAmount,
+    sessions: d.sessions > 1 ? d.sessions : undefined,
     days: days.length === 7 ? [] : days,
   });
   refresh();
@@ -455,4 +502,54 @@ export async function startCheckoutAction(plan: PlanId) {
     email: session.email || undefined,
   });
   redirect(url);
+}
+
+/* -------------------------------- campaigns ------------------------------- */
+
+const CampaignInput = z.object({
+  name: z.string().trim().min(2, "Ponle un nombre a la campaña").max(80),
+  message: z.string().trim().min(10, "Escribe el mensaje").max(900),
+  months: z.coerce.number().int().min(1).max(36),
+  serviceId: z.string().optional(),
+});
+
+/** Sends a WhatsApp message to inactive customers, or prepares manual links when WhatsApp isn't connected. */
+export async function sendCampaignAction(_: ActionState, form: FormData): Promise<ActionState & { manual?: { name: string; url: string }[] }> {
+  const session = await requireOwner();
+  const parsed = CampaignInput.safeParse(Object.fromEntries(form));
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message };
+  const d = parsed.data;
+  const [settings, services] = await Promise.all([getSettings(), listServices()]);
+  const names = new Map(services.map((s) => [s.id, s.name]));
+  const audience = (await inactiveCustomers(d.months, d.serviceId || undefined, names)).slice(0, 300);
+  if (!audience.length) return { error: "No hay clientes que cumplan ese filtro." };
+
+  const link = `${siteUrl()}/reservar/${session.businessId}`;
+  const fromNumber = settings.whatsappPhoneNumberId || process.env.WHATSAPP_PHONE_NUMBER_ID;
+  const live = !session.demo && whatsappConfigured() && !!fromNumber;
+  const recipients: Campaign["recipients"] = [];
+  const manual: { name: string; url: string }[] = [];
+
+  for (const c of audience) {
+    const text = fillMessage(d.message, { name: c.name, business: settings.name, link, service: c.lastService });
+    if (live) {
+      try {
+        const template = process.env.WHATSAPP_CAMPAIGN_TEMPLATE;
+        if (template) await sendTemplate(c.phone, template, [c.name.split(" ")[0] || "", settings.name, link], "es", fromNumber);
+        else await sendText(c.phone, text, fromNumber);
+        recipients.push({ customerId: c.customerId, name: c.name, phone: c.phone, status: "sent" });
+      } catch {
+        recipients.push({ customerId: c.customerId, name: c.name, phone: c.phone, status: "failed" });
+      }
+    } else {
+      recipients.push({ customerId: c.customerId, name: c.name, phone: c.phone, status: "manual" });
+      manual.push({ name: c.name, url: `https://wa.me/${c.phone.replace(/\D/g, "")}?text=${encodeURIComponent(text)}` });
+    }
+  }
+  await saveCampaign({ name: d.name, message: d.message, monthsInactive: d.months, serviceId: d.serviceId || undefined, recipients });
+  refresh();
+  const sent = recipients.filter((r) => r.status === "sent").length;
+  return live
+    ? { ok: true, message: `Campaña enviada a ${sent} de ${recipients.length} clientes.` }
+    : { ok: true, message: `Tu WhatsApp aún no está conectado: aquí tienes ${manual.length} mensajes listos para enviar con un toque.`, manual };
 }

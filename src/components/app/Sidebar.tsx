@@ -21,6 +21,8 @@ const items: Item[] = [
   { href: "/app/conversaciones", label: "Conversaciones", icon: "M4 5h16v11H8l-4 4z", primary: true },
   { href: "/app/probar", label: "Probar recepcionista", icon: "M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15.5l-1.9-4.6L5.5 9l4.6-1.4zM19 15l.9 2.1L22 18l-2.1.9L19 21l-.9-2.1L16 18l2.1-.9z" },
   { href: "/app/clientes", label: "Clientes", icon: "M16 19v-1a4 4 0 00-4-4H7a4 4 0 00-4 4v1M9.5 10a3 3 0 100-6 3 3 0 000 6zM21 19v-1a4 4 0 00-3-3.9M15 4.1a3 3 0 010 5.8", primary: true },
+  { href: "/app/informe", label: "Informe mensual", icon: "M4 20V10m6 10V4m6 16v-7m4 7H2", ownerOnly: true },
+  { href: "/app/campanas", label: "Campañas", icon: "M3 11l15-6v14L3 13zM7 12.5V18a2 2 0 004 0v-4", ownerOnly: true },
   { href: "/app/servicios", label: "Servicios", icon: "M5 7h14M5 12h14M5 17h9", ownerOnly: true },
   { href: "/app/profesionales", label: "Profesionales", icon: "M12 12a4 4 0 100-8 4 4 0 000 8zM4 21a8 8 0 0116 0", ownerOnly: true },
   { href: "/app/equipo", label: "Equipo", icon: "M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75", ownerOnly: true },

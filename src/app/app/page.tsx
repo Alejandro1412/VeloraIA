@@ -255,6 +255,9 @@ async function GettingStarted() {
           </h2>
           <p className="text-sm text-ink-2">Deja todo listo en unos minutos. Toca cada paso para ir directo.</p>
         </div>
+        <Link href="/app/bienvenida" className="btn-primary btn-sm ml-auto hidden sm:inline-flex">
+          Asistente guiado
+        </Link>
       </div>
       <ol className="stagger grid sm:grid-cols-2 xl:grid-cols-5">
         {steps.map((s, i) => (

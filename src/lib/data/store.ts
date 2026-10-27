@@ -3,6 +3,7 @@ import { getRepo } from "./repo";
 import { buildDemoData, DEFAULT_SERVICES, DEFAULT_SETTINGS, servicesForVertical } from "./seed";
 import { currentBusinessId, DEMO_BUSINESS_ID } from "../tenant";
 import type {
+  Campaign,
   Appointment,
   BusinessSettings,
   Channel,
@@ -26,6 +27,7 @@ import type {
 
 type Collection =
   | "settings"
+  | "campaign"
   | "service"
   | "customer"
   | "appointment"
@@ -38,6 +40,7 @@ type Collection =
 
 const scopedKind = (businessId: string, collection: Collection) => `${businessId}:${collection}`;
 
+const DEMO_VERSION = 2;
 const demoSeeding = new Map<string, Promise<void>>();
 
 /** The public demo business seeds itself with a realistic agenda on first use. */
@@ -47,8 +50,23 @@ async function ensureDemoSeeded() {
     p = (async () => {
       const repo = getRepo();
       const k = (c: Collection) => scopedKind(DEMO_BUSINESS_ID, c);
-      if (await repo.get<BusinessSettings>(k("settings"), "business")) return;
+      if (await repo.get<BusinessSettings>(k("settings"), "business")) {
+        // Upgrade an already-seeded demo with data added in later versions.
+        const marker = await repo.get<{ v: number }>(k("settings"), "demo_version");
+        if ((marker?.v ?? 1) < DEMO_VERSION) {
+          const demo = buildDemoData(new Date());
+          const old = demo.appointments.filter((a) => a.id.startsWith("apt_old_"));
+          const ids = new Set(old.map((a) => a.customerId));
+          await Promise.all([
+            ...demo.customers.filter((c) => ids.has(c.id)).map((c) => repo.put(k("customer"), c.id, c, { ts: c.createdAt })),
+            ...old.map((a) => repo.put(k("appointment"), a.id, a, { ts: a.start })),
+          ]);
+          await repo.put(k("settings"), "demo_version", { v: DEMO_VERSION });
+        }
+        return;
+      }
       await repo.put(k("settings"), "business", DEFAULT_SETTINGS);
+      await repo.put(k("settings"), "demo_version", { v: DEMO_VERSION });
       for (const s of DEFAULT_SERVICES) await repo.put(k("service"), s.id, s);
       const demo = buildDemoData(new Date());
       await Promise.all([
@@ -320,6 +338,20 @@ export async function listWaitlist(): Promise<WaitlistEntry[]> {
 export async function saveWaitlistEntry(entry: WaitlistEntry) {
   const { repo, k } = await scope();
   await repo.put(k("waitlist"), entry.id, entry, { ts: entry.createdAt });
+}
+
+/* -------------------------------- campaigns ------------------------------- */
+
+export async function saveCampaign(input: Omit<Campaign, "id" | "createdAt">) {
+  const { repo, k } = await scope();
+  const c: Campaign = { ...input, id: uid("cmp"), createdAt: new Date().toISOString() };
+  await repo.put(k("campaign"), c.id, c, { ts: c.createdAt });
+  return c;
+}
+
+export async function listCampaigns(limit = 20): Promise<Campaign[]> {
+  const { repo, k } = await scope();
+  return repo.list<Campaign>(k("campaign"), { order: "desc", limit });
 }
 
 /* ------------------------------ notifications ----------------------------- */

@@ -84,7 +84,7 @@ export interface WaitlistEntry {
   notifiedAt: string | null;
 }
 
-export type NotificationKind = "booked" | "rescheduled" | "cancelled" | "handoff" | "deposit_paid" | "waitlist";
+export type NotificationKind = "booked" | "rescheduled" | "cancelled" | "confirmed" | "handoff" | "deposit_paid" | "waitlist" | "feedback";
 
 export interface Notification {
   id: string;
@@ -110,6 +110,8 @@ export interface Service {
   bufferMinutes?: number;
   /** Deposit required to secure the booking (COP). 0/undefined = none. */
   depositAmount?: number;
+  /** Package size: sessions sold together (e.g. 10 physiotherapy sessions). 1/undefined = single. */
+  sessions?: number;
 }
 
 export interface Customer {
@@ -150,6 +152,25 @@ export interface Appointment {
   staffId?: string;
   deposit?: Deposit;
   reviewRequestedAt?: string | null;
+  /** Recurring appointments / packages: the series and this session's position. */
+  seriesId?: string;
+  seriesIndex?: number;
+  seriesTotal?: number;
+  /** Satisfaction survey. */
+  surveySentAt?: string | null;
+  rating?: number;
+  feedback?: string;
+  ratedAt?: string;
+}
+
+export interface Campaign {
+  id: string;
+  name: string;
+  message: string;
+  monthsInactive: number;
+  serviceId?: string;
+  recipients: { customerId: string; name: string; phone: string; status: "sent" | "failed" | "manual" }[];
+  createdAt: string;
 }
 
 export type MessageRole = "customer" | "assistant" | "staff";
