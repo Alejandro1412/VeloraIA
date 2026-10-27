@@ -4,8 +4,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { randomBytes } from "node:crypto";
-import { destroySession, requireOwner, requireSession } from "@/lib/auth";
-import { AccountError, createInvite, getBusiness, removeMember, renameBusiness, revokeInvite } from "@/lib/accounts";
+import { createSession, destroySession, requireOwner, requireSession } from "@/lib/auth";
+import { AccountError, createBranch, createInvite, rememberBusiness, getBusiness, removeMember, renameBusiness, revokeInvite } from "@/lib/accounts";
 import { getRepo } from "@/lib/data/repo";
 import { assignStaff, bookAppointment, getAvailability, rescheduleAppointment, setAppointmentStatus } from "@/lib/booking";
 import { PLANS, type PlanId } from "@/lib/billing";
@@ -38,6 +38,7 @@ import {
 } from "@/lib/data/store";
 import { sendTemplate, sendText, whatsappConfigured } from "@/lib/channels/whatsapp";
 import { fillMessage, inactiveCustomers } from "@/lib/campaigns";
+import { markRecallSent } from "@/lib/recalls";
 import type { Campaign } from "@/lib/domain/types";
 
 export type ActionState = { ok?: boolean; error?: string; message?: string } | null;
@@ -253,6 +254,7 @@ const ServiceInput = z.object({
   bufferMinutes: z.coerce.number().int().min(0).max(240).default(0),
   depositAmount: z.coerce.number().min(0, "El anticipo no puede ser negativo").default(0),
   sessions: z.coerce.number().int().min(1).max(52).default(1),
+  recallMonths: z.coerce.number().int().min(0).max(36).default(0),
 });
 
 export async function saveServiceAction(_: ActionState, form: FormData): Promise<ActionState> {
@@ -276,6 +278,7 @@ export async function saveServiceAction(_: ActionState, form: FormData): Promise
     bufferMinutes: d.bufferMinutes,
     depositAmount: d.depositAmount,
     sessions: d.sessions > 1 ? d.sessions : undefined,
+    recallMonths: d.recallMonths > 0 ? d.recallMonths : undefined,
     days: days.length === 7 ? [] : days,
   });
   refresh();
@@ -552,4 +555,98 @@ export async function sendCampaignAction(_: ActionState, form: FormData): Promis
   return live
     ? { ok: true, message: `Campaña enviada a ${sent} de ${recipients.length} clientes.` }
     : { ok: true, message: `Tu WhatsApp aún no está conectado: aquí tienes ${manual.length} mensajes listos para enviar con un toque.`, manual };
+}
+
+/* --------------------------------- branches -------------------------------- */
+
+export async function switchBusinessAction(businessId: string) {
+  const session = await requireSession();
+  if (session.demo) return;
+  const access = await rememberBusiness(session.userId, businessId);
+  if (!access) return;
+  await createSession({ userId: session.userId, businessId, name: session.name, email: session.email, role: access.role });
+  redirect("/app");
+}
+
+const BranchInput = z.object({
+  name: z.string().trim().min(2, "Escribe el nombre de la sede").max(80),
+  vertical: z.string().trim().max(60).optional(),
+});
+
+export async function createBranchAction(_: ActionState, form: FormData): Promise<ActionState> {
+  const session = await requireOwner();
+  if (session.demo) return { error: "En la demostración no se pueden crear sedes." };
+  const parsed = BranchInput.safeParse(Object.fromEntries(form));
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message };
+  const branch = await createBranch(session.userId, parsed.data.name, parsed.data.vertical);
+  await rememberBusiness(session.userId, branch.id);
+  await createSession({ userId: session.userId, businessId: branch.id, name: session.name, email: session.email, role: "owner" });
+  redirect("/app/bienvenida");
+}
+
+/* --------------------------------- recalls -------------------------------- */
+
+/** Owner sent the "time for your next visit" message by hand: don't suggest it again. */
+export async function markRecallSentAction(appointmentId: string): Promise<ActionState> {
+  await requireOwner();
+  await markRecallSent(appointmentId);
+  refresh();
+  return { ok: true };
+}
+
+/* ------------------------------ pre-visit form ----------------------------- */
+
+const IntakeFieldInput = z.object({
+  id: z.string().regex(/^[a-z0-9_]{1,40}$/),
+  label: z.string().trim().min(2).max(160),
+  type: z.enum(["text", "textarea", "select", "checkbox"]),
+  options: z.array(z.string().trim().min(1).max(60)).max(12).optional(),
+  required: z.boolean().optional(),
+});
+
+export async function saveIntakeFieldsAction(fields: unknown): Promise<ActionState> {
+  const session = await requireOwner();
+  if (session.demo) return { error: "En la demostración no se puede cambiar el formulario." };
+  const parsed = z.array(IntakeFieldInput).max(15).safeParse(fields);
+  if (!parsed.success) return { error: "Revisa las preguntas: cada una necesita un texto, y las de opciones al menos una opción." };
+  for (const f of parsed.data) if (f.type === "select" && !(f.options?.length)) return { error: `“${f.label}” necesita opciones.` };
+  const settings = await getSettings();
+  await saveSettings({ ...settings, intakeFields: parsed.data });
+  refresh();
+  return { ok: true, message: "Formulario guardado" };
+}
+
+/* ---------------------------------- caja ---------------------------------- */
+
+const PaymentInput = z.object({
+  amount: z.coerce.number().min(0).max(100_000_000),
+  method: z.enum(["efectivo", "tarjeta", "transferencia", "nequi", "daviplata", "otro"]),
+});
+
+/** Marks the visit as attended and, optionally, records what was charged. */
+export async function completeWithPaymentAction(id: string, payment: { amount: number; method: string } | null): Promise<ActionState> {
+  await requireSession();
+  const apt = await setAppointmentStatus(id, "completed", { notify: false });
+  if (payment) {
+    const p = PaymentInput.safeParse(payment);
+    if (!p.success) return { error: "Revisa el valor y el medio de pago." };
+    await saveAppointment({ ...apt, status: "completed", payment: { ...p.data, at: new Date().toISOString() } });
+  }
+  refresh();
+  return { ok: true };
+}
+
+export async function setPaymentAction(id: string, payment: { amount: number; method: string } | null): Promise<ActionState> {
+  await requireSession();
+  const apt = await getAppointment(id);
+  if (!apt) return { error: "Cita no encontrada" };
+  if (!payment) {
+    await saveAppointment({ ...apt, payment: undefined });
+  } else {
+    const p = PaymentInput.safeParse(payment);
+    if (!p.success) return { error: "Revisa el valor y el medio de pago." };
+    await saveAppointment({ ...apt, payment: { ...p.data, at: apt.payment?.at ?? new Date().toISOString() } });
+  }
+  refresh();
+  return { ok: true };
 }

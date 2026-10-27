@@ -7,10 +7,10 @@ import { Logo } from "../brand/Logo";
 import { ThemeToggle } from "../fx/ThemeToggle";
 
 const links = [
-  { href: "#como-funciona", label: "Cómo funciona" },
-  { href: "#demo", label: "Demo en vivo" },
-  { href: "#ahorro", label: "Calcula tu ahorro" },
-  { href: "#precios", label: "Precios" },
+  { href: "/#como-funciona", label: "Cómo funciona" },
+  { href: "/#demo", label: "Demo en vivo" },
+  { href: "/#ahorro", label: "Calcula tu ahorro" },
+  { href: "/#precios", label: "Precios" },
 ];
 
 export function Nav() {

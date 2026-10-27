@@ -13,6 +13,7 @@ export interface CustomerRow {
   name: string;
   phone: string;
   notes: string;
+  intake: { label: string; value: string }[];
   visits: number;
   noShows: number;
   cancellations: number;
@@ -213,6 +214,20 @@ function CustomerDrawer({ row, currency, onClose }: { row: CustomerRow; currency
               {saved && <span className="text-sm text-mint">Notas guardadas</span>}
             </div>
           </div>
+
+          {row.intake.length > 0 && (
+            <>
+              <h3 className="mt-8 text-sm font-medium text-ink-2">Formulario previo (última respuesta)</h3>
+              <dl className="mt-2 space-y-2 rounded-2xl border border-line bg-porcelain/50 p-4 text-sm">
+                {row.intake.map((q) => (
+                  <div key={q.label}>
+                    <dt className="text-muted">{q.label}</dt>
+                    <dd className="font-medium whitespace-pre-line">{q.value}</dd>
+                  </div>
+                ))}
+              </dl>
+            </>
+          )}
 
           <h3 className="mt-8 text-sm font-medium text-ink-2">Historial</h3>
           <ul className="mt-2 divide-y divide-line-soft rounded-2xl border border-line">

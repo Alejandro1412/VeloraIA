@@ -48,6 +48,7 @@ export const DEFAULT_SERVICES: Service[] = [
     description: "Revisión completa y plan de tratamiento.",
     keywords: ["valoracion", "revision", "chequeo", "consulta", "primera vez", "evaluacion"],
     active: true,
+    recallMonths: 12,
   },
   {
     id: "svc_limpieza",
@@ -57,6 +58,7 @@ export const DEFAULT_SERVICES: Service[] = [
     description: "Profilaxis, retiro de sarro y pulido.",
     keywords: ["limpieza", "profilaxis", "sarro", "higiene"],
     active: true,
+    recallMonths: 6,
   },
   {
     id: "svc_blanqueamiento",
@@ -75,6 +77,7 @@ export const DEFAULT_SERVICES: Service[] = [
     description: "Ajuste mensual de brackets o alineadores.",
     keywords: ["ortodoncia", "brackets", "frenillos", "control", "alineadores", "ajuste"],
     active: true,
+    recallMonths: 1,
   },
   {
     id: "svc_urgencia",
@@ -180,6 +183,29 @@ export function buildDemoData(now: Date, settings = DEFAULT_SETTINGS, services =
 
   // Customers who stopped coming months ago: the audience for win-back campaigns.
   const dormant = ["Gloria Pineda", "Hernán Castaño", "Lucía Ospina", "Ricardo Mejía", "Paola Cárdenas", "Jorge Villa", "Natalia Arango", "Esteban Rojas"];
+  // Customers whose 6-month cleaning is due now: the automatic "next visit" reminder.
+  ["Sandra Molina", "Andrés Zapata", "Carolina Restrepo"].forEach((name, i) => {
+    const phone = `+57302${String(3000000 + i * 5011).slice(0, 7)}`;
+    const id = `c_${phone.slice(1)}`;
+    const date = addDays(today, -(186 + i * 9));
+    const start = localToUtc(date, "11:00", settings.utcOffsetMinutes);
+    const svc = services.find((x) => x.id === "svc_limpieza") ?? services[0];
+    customers.push({ id, name, phone, createdAt: new Date(start.getTime() - 20 * 86_400_000).toISOString() });
+    appointments.push({
+      id: `apt_old_r${i}`,
+      serviceId: svc.id,
+      customerId: id,
+      start: start.toISOString(),
+      end: new Date(start.getTime() + svc.durationMinutes * 60_000).toISOString(),
+      status: "completed",
+      source: "whatsapp",
+      notes: "",
+      reminderSentAt: null,
+      createdAt: new Date(start.getTime() - 2 * 86_400_000).toISOString(),
+      rating: 5,
+    });
+  });
+
   dormant.forEach((name, i) => {
     const phone = `+57301${String(2000000 + i * 4243).slice(0, 7)}`;
     const id = `c_${phone.slice(1)}`;
@@ -309,6 +335,21 @@ const GENERIC: ServiceTemplate[] = [
   ["Cita estándar", 60, 80000, ["cita", "servicio", "sesion"]],
 ];
 
+/** Sensible "come back in N months" defaults by service name. */
+export function suggestedRecall(name: string): number | undefined {
+  const n = name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  if (/limpieza dental|profilaxis/.test(n)) return 6;
+  if (/ortodoncia|brackets/.test(n)) return 1;
+  if (/valoracion|chequeo|control general|consulta general/.test(n)) return 12;
+  if (/vacun/.test(n)) return 12;
+  if (/desparasit/.test(n)) return 3;
+  if (/bano|peluqueria canina|grooming/.test(n)) return 1;
+  if (/corte|barba/.test(n)) return 1;
+  if (/limpieza facial|facial/.test(n)) return 1;
+  if (/cambio de aceite|mantenimiento/.test(n)) return 6;
+  return undefined;
+}
+
 export function servicesForVertical(vertical: string): Service[] {
   return (TEMPLATES[vertical] ?? GENERIC).map(([name, durationMinutes, price, keywords], i) => ({
     id: `svc_${i + 1}_${name.toLowerCase().normalize("NFD").replace(/[^a-z]/g, "").slice(0, 16)}`,
@@ -318,5 +359,6 @@ export function servicesForVertical(vertical: string): Service[] {
     description: "",
     keywords,
     active: true,
+    recallMonths: suggestedRecall(name),
   }));
 }

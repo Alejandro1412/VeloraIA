@@ -17,6 +17,14 @@ export interface DayHours {
   breaks: TimeRange[];
 }
 
+export interface IntakeField {
+  id: string;
+  label: string;
+  type: "text" | "textarea" | "select" | "checkbox";
+  options?: string[];
+  required?: boolean;
+}
+
 export interface BusinessSettings {
   name: string;
   vertical: string;
@@ -50,6 +58,8 @@ export interface BusinessSettings {
   wompiEventsSecret?: string;
   /** Secret token for the read-only calendar feed (.ics). */
   calendarToken?: string;
+  /** Questions the customer answers before the visit (from their appointment link). */
+  intakeFields?: IntakeField[];
 }
 
 /** A person (or chair/room) appointments are booked with. */
@@ -112,6 +122,8 @@ export interface Service {
   depositAmount?: number;
   /** Package size: sessions sold together (e.g. 10 physiotherapy sessions). 1/undefined = single. */
   sessions?: number;
+  /** Suggested return interval: after this many months a "time for your next visit" message is sent. */
+  recallMonths?: number;
 }
 
 export interface Customer {
@@ -136,6 +148,17 @@ export type AppointmentStatus =
   | "cancelled"
   | "no_show";
 
+export type PaymentMethod = "efectivo" | "tarjeta" | "transferencia" | "nequi" | "daviplata" | "otro";
+
+export const PAYMENT_LABEL: Record<PaymentMethod, string> = {
+  efectivo: "Efectivo",
+  tarjeta: "Tarjeta",
+  transferencia: "Transferencia",
+  nequi: "Nequi",
+  daviplata: "Daviplata",
+  otro: "Otro",
+};
+
 export type Channel = "whatsapp" | "web" | "voice" | "manual";
 
 export interface Appointment {
@@ -158,6 +181,13 @@ export interface Appointment {
   seriesTotal?: number;
   /** Satisfaction survey. */
   surveySentAt?: string | null;
+  /** When the "time for your next visit" message for this visit was sent. */
+  recallSentAt?: string | null;
+  /** Answers to the pre-visit form, keyed by field id. */
+  intake?: Record<string, string | boolean>;
+  intakeAt?: string;
+  /** Payment registered at the front desk when the visit is completed. */
+  payment?: { amount: number; method: PaymentMethod; at: string };
   rating?: number;
   feedback?: string;
   ratedAt?: string;

@@ -6,6 +6,7 @@ import { getSettings, listNotifications } from "@/lib/data/store";
 import { formatTimeEs, localParts, relativeDayEs } from "@/lib/domain/time";
 import { Empty, PageHeader, PageSkeleton } from "@/components/app/ui";
 import { AutoRefresh } from "@/components/app/AutoRefresh";
+import { PushControls } from "@/components/app/PushControls";
 import { markNotificationsReadAction } from "../actions";
 
 const HELP = {
@@ -50,7 +51,7 @@ const DOT: Record<string, string> = {
 };
 
 async function Notifications() {
-  await requireSession();
+  const session = await requireSession();
   const [items, settings] = await Promise.all([listNotifications(100), getSettings()]);
   const today = localParts(new Date(), settings.utcOffsetMinutes).date;
   const unread = items.filter((n) => !n.read).length;
@@ -75,7 +76,8 @@ async function Notifications() {
           ) : undefined
         }
       />
-      <div className="px-5 py-6 lg:px-10">
+      <div className="space-y-6 px-5 py-6 lg:px-10">
+        <PushControls demo={session.demo} />
         {items.length === 0 ? (
           <Empty title="Sin avisos todavía">Cuando un cliente agende, cancele o pida hablar con una persona, lo verás aquí.</Empty>
         ) : (

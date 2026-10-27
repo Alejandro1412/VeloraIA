@@ -1,3 +1,4 @@
+import { intakeAnswers } from "@/lib/intake";
 import { Suspense } from "react";
 import { requireSession } from "@/lib/auth";
 import { getSettings, listAppointments, listCustomers, listServices, listStaff } from "@/lib/data/store";
@@ -58,6 +59,7 @@ async function Customers({ searchParams }: { searchParams: PageProps<"/app/clien
         name: c.name || "Sin nombre",
         phone: c.phone.startsWith("+") ? c.phone : "",
         notes: c.notes ?? "",
+        intake: intakeAnswers(settings.intakeFields, mine.find((a) => a.intake)?.intake),
         visits: attended.length,
         noShows: mine.filter((a) => a.status === "no_show").length,
         cancellations: mine.filter((a) => a.status === "cancelled").length,

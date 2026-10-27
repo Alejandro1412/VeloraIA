@@ -40,7 +40,7 @@ type Collection =
 
 const scopedKind = (businessId: string, collection: Collection) => `${businessId}:${collection}`;
 
-const DEMO_VERSION = 2;
+const DEMO_VERSION = 3;
 const demoSeeding = new Map<string, Promise<void>>();
 
 /** The public demo business seeds itself with a realistic agenda on first use. */
@@ -61,6 +61,11 @@ async function ensureDemoSeeded() {
             ...demo.customers.filter((c) => ids.has(c.id)).map((c) => repo.put(k("customer"), c.id, c, { ts: c.createdAt })),
             ...old.map((a) => repo.put(k("appointment"), a.id, a, { ts: a.start })),
           ]);
+          // Defaults added later (e.g. "next visit" intervals) for the stored demo services.
+          for (const svc of DEFAULT_SERVICES) {
+            const stored = await repo.get<Service>(k("service"), svc.id);
+            if (stored && stored.recallMonths === undefined && svc.recallMonths) await repo.put(k("service"), svc.id, { ...stored, recallMonths: svc.recallMonths });
+          }
           await repo.put(k("settings"), "demo_version", { v: DEMO_VERSION });
         }
         return;
@@ -360,6 +365,12 @@ export async function addNotification(input: { kind: NotificationKind; title: st
   const { repo, k } = await scope();
   const n: Notification = { ...input, id: uid("ntf"), read: false, createdAt: new Date().toISOString() };
   await repo.put(k("notification"), n.id, n, { ts: n.createdAt });
+  // Real-time alert on the owner's devices (installed app or browser).
+  const { businessId } = await scope();
+  if (businessId !== DEMO_BUSINESS_ID) {
+    const { pushToBusiness } = await import("../push");
+    await pushToBusiness(businessId, { title: n.title, body: n.body, url: n.href, tag: n.kind });
+  }
   return n;
 }
 

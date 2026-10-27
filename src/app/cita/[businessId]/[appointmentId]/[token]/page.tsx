@@ -7,6 +7,7 @@ import { addDays, formatDateEs, formatTimeEs, localParts } from "@/lib/domain/ti
 import { verifyLink } from "@/lib/links";
 import { DEMO_BUSINESS_ID, isValidBusinessId, withBusiness } from "@/lib/tenant";
 import { ManageAppointment } from "./ManageAppointment";
+import { IntakeForm } from "./IntakeForm";
 import { ThemeToggle } from "@/components/fx/ThemeToggle";
 import { LogoMark } from "@/components/brand/Logo";
 
@@ -96,6 +97,9 @@ async function Content({ params }: { params: Params }) {
           phone={settings.phone}
         />
       </section>
+      {!!settings.intakeFields?.length && !past && apt.status !== "cancelled" && (
+        <IntakeForm refs={{ businessId, appointmentId, token }} fields={settings.intakeFields} initial={apt.intake} />
+      )}
       <p className="mt-6 text-center text-xs text-muted">Reservas con Velora · Este enlace es personal, no lo compartas.</p>
     </div>
   );

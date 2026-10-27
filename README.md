@@ -17,6 +17,13 @@ Un producto de **IONEX**. Velora contesta WhatsApp y llamadas las 24 horas, agen
 | Informe mensual | `/app/informe` | Citas, ingresos, inasistencia, lo que agendó la recepcionista y fuera de horario. Se envía por correo el día 1. |
 | Campañas | `/app/campanas` | Mensajes a clientes inactivos (3, 6 o 12 meses), por WhatsApp o con enlaces listos para enviar a mano. |
 | Asistente inicial | `/app/bienvenida` | Configuración guiada al registrarse: negocio, horario, servicios, equipo y enlace. |
+| Administración IONEX | `/admin` | Todos los negocios: ingreso mensual, pruebas, vencimientos, uso e inactividad; extender prueba, registrar pago manual o pausar. Acceso con `IONEX_ADMIN_EMAILS`. |
+| Próximo control | Servicios + `/app/campanas` | Cada servicio puede tener "volver en N meses"; el cron le escribe al cliente cuando le toca. |
+| Formulario previo | `/app/formulario` | Preguntas por negocio (plantillas por tipo); el cliente las responde en el enlace de su cita. |
+| Caja | `/app/caja` | Pagos registrados al atender, anticipos de Wompi, total por medio de pago y Excel del día. |
+| App instalable | `manifest`, `sw.js`, `/api/push` | Se instala en el celular; notificaciones push con llaves VAPID derivadas del secreto del servidor. |
+| Sedes | `/app/sedes` | Varias sedes con la misma cuenta y cambio rápido entre ellas. |
+| Páginas por tipo | `/para/<tipo>` | Landing para odontología, estética, veterinaria, fisioterapia, barbería, consultorios y talleres. |
 | Botón para sitios web | `/widget.js` | `<script src=".../widget.js" data-business="<id>" async>` abre la reserva en un panel flotante. |
 | Página de reservas | `/reservar/<id>` | Enlace público de cada negocio para que sus clientes agenden con Sofía. |
 | Chat web | `POST /api/chat` | El mismo agente que atiende WhatsApp y voz. |

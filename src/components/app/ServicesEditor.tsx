@@ -23,10 +23,11 @@ export function ServicesEditor({ services }: { services: Service[] }) {
                 <div className="min-w-0">
                   <p className={clsx("font-medium", !s.active && "text-muted line-through")}>{s.name}</p>
                   <p className="truncate text-sm text-muted">{s.description || "Sin descripción"}</p>
-                  {(!!s.depositAmount || !!s.bufferMinutes || !!s.days?.length || (s.sessions ?? 1) > 1) && (
+                  {(!!s.depositAmount || !!s.bufferMinutes || !!s.days?.length || (s.sessions ?? 1) > 1 || !!s.recallMonths) && (
                     <p className="mt-1 flex flex-wrap gap-1.5 text-xs">
                       {!!s.depositAmount && <span className="rounded-full bg-mint-soft px-2 py-0.5 text-mint-ink">Anticipo {formatMoney(s.depositAmount)}</span>}
                       {(s.sessions ?? 1) > 1 && <span className="rounded-full bg-cobalt-soft px-2 py-0.5 text-cobalt">Paquete de {s.sessions} sesiones</span>}
+                      {!!s.recallMonths && <span className="rounded-full bg-amber-soft px-2 py-0.5 text-amber-ink">Control cada {s.recallMonths} m</span>}
                       {!!s.bufferMinutes && <span className="rounded-full bg-line-soft px-2 py-0.5 text-ink-2">+{s.bufferMinutes} min descanso</span>}
                       {!!s.days?.length && (
                         <span className="rounded-full bg-line-soft px-2 py-0.5 text-ink-2">{DAYS.filter(([d]) => s.days!.includes(d)).map(([, l]) => l).join(" · ")}</span>
@@ -121,6 +122,19 @@ function ServiceForm({ service, onDone }: { service?: Service; onDone: () => voi
           Anticipo (COP)
         </label>
         <input id={`${id}-dep`} name="depositAmount" type="number" min={0} step={1000} defaultValue={service?.depositAmount ?? 0} className="field" />
+      </div>
+      <div className="sm:col-span-2">
+        <label htmlFor={`${id}-recall`} className="label">
+          Volver a contactar en (meses)
+        </label>
+        <select id={`${id}-recall`} name="recallMonths" defaultValue={service?.recallMonths ?? 0} className="field">
+          <option value={0}>No enviar recordatorio de control</option>
+          {[1, 2, 3, 4, 6, 9, 12, 18, 24].map((m) => (
+            <option key={m} value={m}>
+              {m} {m === 1 ? "mes" : "meses"} después de atendido
+            </option>
+          ))}
+        </select>
       </div>
       <div className="sm:col-span-2">
         <label htmlFor={`${id}-ses`} className="label">

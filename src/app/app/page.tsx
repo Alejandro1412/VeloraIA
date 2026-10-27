@@ -1,3 +1,4 @@
+import { getRepo } from "@/lib/data/repo";
 import Link from "next/link";
 import { Suspense } from "react";
 import { requireSession } from "@/lib/auth";
@@ -206,6 +207,7 @@ const daysAgo = (n: number) => new Date(Date.now() - n * 86_400_000).toISOString
 async function GettingStarted() {
   const session = await requireSession();
   if (session.demo || session.role !== "owner") return null;
+  const hasPush = (await getRepo().list<{ businessId: string }>("push_sub")).some((x) => x.businessId === session.businessId);
   const [settings, staff, conversations, appointments] = await Promise.all([
     getSettings(),
     listStaff(),
@@ -217,7 +219,7 @@ async function GettingStarted() {
     { done: staff.length > 0, title: "Agrega a tu equipo", body: "Quién atiende y qué servicios hace.", href: "/app/profesionales" },
     { done: conversations.some((c) => c.channel === "web"), title: `Prueba a ${settings.assistantName}`, body: "Escríbele como si fueras un cliente.", href: "/app/probar" },
     { done: appointments.some((a) => a.source !== "manual"), title: "Recibe tu primera reserva", body: "Comparte tu enlace en Instagram, Google o WhatsApp.", href: "/app/ajustes" },
-    { done: !!settings.notifyEmail || !!settings.notifyWhatsapp, title: "Activa tus avisos", body: "Te avisamos de citas nuevas y cancelaciones.", href: "/app/ajustes" },
+    { done: !!settings.notifyEmail || !!settings.notifyWhatsapp || hasPush, title: "Activa tus avisos", body: "Instala la app y recibe alertas de citas nuevas al instante.", href: "/app/notificaciones" },
   ];
   const done = steps.filter((s) => s.done).length;
   if (done === steps.length) return null;

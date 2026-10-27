@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRef } from "react";
 import { gsap, useGSAP } from "../motion/gsap";
 import { Logo } from "../brand/Logo";
+import { VERTICAL_PAGES } from "@/lib/landing-verticals";
 
 export function Footer() {
   const root = useRef<HTMLElement>(null);
@@ -51,14 +52,26 @@ export function Footer() {
           </div>
         </div>
 
-        <div className="mt-20 flex flex-col justify-between gap-6 border-t border-white/15 pt-8 text-sm text-white/60 sm:flex-row">
+        <nav aria-label="Velora por tipo de negocio" className="mt-16 flex flex-wrap gap-2">
+          {VERTICAL_PAGES.map((v) => (
+            <Link
+              key={v.slug}
+              href={`/para/${v.slug}`}
+              className="rounded-full border border-white/15 px-3.5 py-1.5 text-sm text-white/70 transition-colors hover:border-white/40 hover:text-white"
+            >
+              {v.emoji} {v.name}
+            </Link>
+          ))}
+        </nav>
+
+        <div className="mt-10 flex flex-col justify-between gap-6 border-t border-white/15 pt-8 text-sm text-white/60 sm:flex-row">
           <div className="flex items-center gap-3 text-white">
             <Logo inverted />
             <span className="text-white/60">Un producto de IONEX</span>
           </div>
           <nav aria-label="Pie de página" className="flex flex-wrap gap-x-6 gap-y-2">
-            <a href="#como-funciona" className="hover:text-white">Cómo funciona</a>
-            <a href="#precios" className="hover:text-white">Precios</a>
+            <Link href="/#como-funciona" className="hover:text-white">Cómo funciona</Link>
+            <Link href="/#precios" className="hover:text-white">Precios</Link>
             <Link href="/privacidad" className="hover:text-white">Privacidad</Link>
             <span>© 2026 IONEX</span>
           </nav>

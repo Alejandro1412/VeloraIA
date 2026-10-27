@@ -6,13 +6,14 @@ import { clsx } from "clsx";
 import {
   assignStaffAction,
   cancelSeriesAction,
+  completeWithPaymentAction,
   createAppointmentAction,
   rescheduleAction,
   setDepositAction,
   setStatusAction,
   slotsAction,
 } from "@/app/app/actions";
-import { CHANNEL_LABEL, STATUS_LABEL, type AppointmentStatus, type Channel } from "@/lib/domain/types";
+import { CHANNEL_LABEL, PAYMENT_LABEL, STATUS_LABEL, type AppointmentStatus, type Channel, type PaymentMethod } from "@/lib/domain/types";
 import { formatMoney, formatTimeEs, toMinutes } from "@/lib/domain/time";
 import { StatusBadge } from "./ui";
 
@@ -35,6 +36,9 @@ export interface BoardAppointment {
   rating?: number;
   manageUrl: string;
   surveyUrl: string;
+  intake: { label: string; value: string }[];
+  hasIntakeForm: boolean;
+  payment?: { amount: number; method: PaymentMethod };
 }
 
 export interface BoardStaff {
@@ -274,6 +278,9 @@ function AppointmentDrawer({ appointment: a, onClose, today, staff }: { appointm
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [moving, setMoving] = useState(false);
+  const [paying, setPaying] = useState(false);
+  const [amount, setAmount] = useState(Math.max(0, a.price - (a.deposit?.status === "paid" ? a.deposit.amount : 0)));
+  const [method, setMethod] = useState<PaymentMethod>("efectivo");
   const [date, setDate] = useState(a.date >= today ? a.date : today);
   const [slots, setSlots] = useState<string[] | null>(null);
 
@@ -419,6 +426,14 @@ function AppointmentDrawer({ appointment: a, onClose, today, staff }: { appointm
                 </dd>
               </>
             )}
+            {a.payment && (
+              <>
+                <dt className="text-muted">Pagó</dt>
+                <dd>
+                  {formatMoney(a.payment.amount)} · {PAYMENT_LABEL[a.payment.method]}
+                </dd>
+              </>
+            )}
             <dt className="text-muted">Canal</dt>
             <dd>{CHANNEL_LABEL[a.source]}</dd>
             <dt className="text-muted">Celular</dt>
@@ -438,6 +453,24 @@ function AppointmentDrawer({ appointment: a, onClose, today, staff }: { appointm
               </>
             )}
           </dl>
+
+          {a.hasIntakeForm && (
+            <div className="mt-6">
+              <p className="text-sm font-medium text-ink-2">Formulario previo</p>
+              {a.intake.length ? (
+                <dl className="mt-2 space-y-2 rounded-2xl border border-line bg-porcelain/50 p-4 text-sm">
+                  {a.intake.map((q) => (
+                    <div key={q.label}>
+                      <dt className="text-muted">{q.label}</dt>
+                      <dd className="font-medium whitespace-pre-line">{q.value}</dd>
+                    </div>
+                  ))}
+                </dl>
+              ) : (
+                <p className="mt-1 text-sm text-muted">Aún no lo llena. Va en el enlace de su cita: puedes reenviárselo abajo.</p>
+              )}
+            </div>
+          )}
 
           <CustomerLinks a={a} phoneDigits={phoneDigits} />
 
@@ -485,6 +518,67 @@ function AppointmentDrawer({ appointment: a, onClose, today, staff }: { appointm
               {error}
             </p>
           )}
+
+          <AnimatePresence>
+            {paying && (
+              <motion.div
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 12 }}
+                className="mt-6 rounded-2xl border border-cobalt/40 bg-cobalt-soft/50 p-4"
+              >
+                <p className="font-medium">¿Cuánto pagó?</p>
+                <p className="text-sm text-muted">Queda en la caja del día. Puedes omitirlo.</p>
+                <label htmlFor="pay-amount" className="label mt-3">
+                  Valor (COP)
+                </label>
+                <input id="pay-amount" type="number" min={0} step={1000} value={amount} onChange={(e) => setAmount(Number(e.target.value))} className="field" />
+                <div className="mt-3 flex flex-wrap gap-1.5" role="radiogroup" aria-label="Medio de pago">
+                  {(Object.keys(PAYMENT_LABEL) as PaymentMethod[]).map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      role="radio"
+                      aria-checked={method === m}
+                      onClick={() => setMethod(m)}
+                      className={clsx("rounded-full border px-3 py-1.5 text-sm transition-colors", method === m ? "border-night bg-night text-white" : "border-line bg-paper hover:border-ink-2")}
+                    >
+                      {PAYMENT_LABEL[m]}
+                    </button>
+                  ))}
+                </div>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    disabled={pending}
+                    onClick={() =>
+                      start(async () => {
+                        const r = await completeWithPaymentAction(a.id, { amount, method });
+                        if (r?.error) setError(r.error);
+                        else onClose();
+                      })
+                    }
+                    className="btn-primary btn-sm"
+                  >
+                    Guardar pago y marcar atendida
+                  </button>
+                  <button
+                    type="button"
+                    disabled={pending}
+                    onClick={() =>
+                      start(async () => {
+                        await completeWithPaymentAction(a.id, null);
+                        onClose();
+                      })
+                    }
+                    className="btn-ghost btn-sm"
+                  >
+                    Sin registrar pago
+                  </button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
         <div className="grid grid-cols-2 gap-2 border-t border-line px-6 py-5">
@@ -495,7 +589,7 @@ function AppointmentDrawer({ appointment: a, onClose, today, staff }: { appointm
                   Confirmar
                 </button>
               )}
-              <button type="button" disabled={pending} onClick={() => act("completed")} className="btn-primary btn-sm">
+              <button type="button" disabled={pending} onClick={() => setPaying(true)} className="btn-primary btn-sm">
                 Marcar atendida
               </button>
               <button type="button" disabled={pending} onClick={() => act("no_show")} className="btn-ghost btn-sm">

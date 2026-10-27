@@ -202,8 +202,8 @@ async function Report({ searchParams }: { searchParams: PageProps<"/app/informe"
         )}
 
         <p className="text-sm text-muted">
-          Atendidas: {r.completed} · No asistieron: {r.noShows} · Canceladas: {r.cancelled}. Los ingresos cuentan solo citas marcadas como atendidas, con el
-          precio actual de cada servicio.
+          Atendidas: {r.completed} · No asistieron: {r.noShows} · Canceladas: {r.cancelled}. Los ingresos cuentan las citas atendidas: lo registrado en Caja o,
+          si no se registró, el precio del servicio.
         </p>
       </div>
     </>

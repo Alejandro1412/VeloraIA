@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Suspense } from "react";
 import { AuthShell, Divider, GoogleButton } from "@/components/auth/AuthShell";
 import { googleConfigured } from "@/lib/google";
 import { RegisterForm } from "./RegisterForm";
@@ -37,7 +38,9 @@ export default function RegisterPage() {
         <GoogleButton enabled={googleConfigured()} label="Registrarme con Google" />
       </div>
       <Divider>o con tu correo</Divider>
-      <RegisterForm />
+      <Suspense fallback={<div className="shimmer h-96 rounded-2xl" />}>
+        <RegisterForm />
+      </Suspense>
     </AuthShell>
   );
 }

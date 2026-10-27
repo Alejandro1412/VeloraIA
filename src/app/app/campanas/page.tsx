@@ -6,6 +6,9 @@ import { getSettings, listCampaigns, listServices } from "@/lib/data/store";
 import { siteUrl } from "@/lib/site";
 import { PageHeader, PageSkeleton } from "@/components/app/ui";
 import { CampaignForm } from "@/components/app/CampaignForm";
+import { RecallList } from "@/components/app/RecallList";
+import { dueRecalls } from "@/lib/recalls";
+import Link from "next/link";
 
 const HELP = {
   id: "campanas",
@@ -13,7 +16,7 @@ const HELP = {
     { title: "Elige a quién", body: "Clientes que no vienen hace 3, 6 o 12 meses y no tienen cita próxima." },
     { title: "Escribe el mensaje", body: "Usa {nombre}, {servicio} y {enlace}; se reemplazan por cada cliente." },
     { title: "Envía", body: "Con WhatsApp conectado sale solo. Si no, te damos un botón por cliente." },
-    { title: "Mide", body: "Las reservas que lleguen aparecen en tu agenda e informe mensual." },
+    { title: "Controles automáticos", body: "Arriba: clientes a los que ya les toca volver según cada servicio." },
   ],
 };
 
@@ -30,7 +33,8 @@ async function Campaigns({ searchParams }: { searchParams: PageProps<"/app/campa
   const q = await searchParams;
   const months = [3, 6, 12].includes(Number(q.meses)) ? Number(q.meses) : 6;
   const serviceId = typeof q.servicio === "string" && q.servicio ? q.servicio : undefined;
-  const [settings, services, history] = await Promise.all([getSettings(), listServices(), listCampaigns()]);
+  const [settings, services, history, recalls] = await Promise.all([getSettings(), listServices(), listCampaigns(), dueRecalls()]);
+  const withRecall = services.filter((s) => (s.recallMonths ?? 0) > 0);
   const names = new Map(services.map((s) => [s.id, s.name]));
   const audience = await inactiveCustomers(months, serviceId, names);
   const live = !session.demo && whatsappConfigured() && !!(settings.whatsappPhoneNumberId || process.env.WHATSAPP_PHONE_NUMBER_ID);
@@ -39,6 +43,28 @@ async function Campaigns({ searchParams }: { searchParams: PageProps<"/app/campa
     <>
       <PageHeader help={HELP} title="Campañas" description="Recupera a los clientes que dejaron de venir con un mensaje personal por WhatsApp." />
       <div className="px-5 py-6 lg:px-10">
+        <section aria-labelledby="recall-title" className="mb-12">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h2 id="recall-title" className="flex items-center gap-2 font-display text-xl font-semibold tracking-tight">
+                Próximos controles
+                <span className="rounded-full bg-amber-soft px-2.5 py-0.5 font-sans text-sm font-medium text-amber-ink">{recalls.length}</span>
+              </h2>
+              <p className="mt-1 text-sm text-ink-2">
+                Automático: a cada cliente le escribimos cuando le toca volver.{" "}
+                {withRecall.length
+                  ? `Activo en ${withRecall.map((s) => `${s.name} (cada ${s.recallMonths} m)`).join(", ")}.`
+                  : "Aún no hay servicios con control: actívalo en Servicios."}
+              </p>
+            </div>
+            <Link href="/app/servicios" className="btn-ghost btn-sm">
+              Configurar en Servicios
+            </Link>
+          </div>
+          <RecallList items={recalls.slice(0, 100)} live={live} demo={session.demo} />
+        </section>
+
+        <h2 className="mb-4 font-display text-xl font-semibold tracking-tight">Campaña a clientes inactivos</h2>
         <CampaignForm
           months={months}
           serviceId={serviceId ?? ""}

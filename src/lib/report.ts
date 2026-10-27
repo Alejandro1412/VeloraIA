@@ -57,7 +57,8 @@ export async function monthReport(month: string, withPrevious = true): Promise<M
   const svc = new Map(services.map((s) => [s.id, s]));
   const inMonth = all.filter((a) => a.start >= from && a.start < to);
   const live = inMonth.filter((a) => ACTIVE.has(a.status));
-  const price = (a: Appointment) => svc.get(a.serviceId)?.price ?? 0;
+  // Real charge when the front desk registered it; otherwise the list price.
+  const price = (a: Appointment) => a.payment?.amount ?? svc.get(a.serviceId)?.price ?? 0;
 
   // Booked outside business hours (or on a closed day): appointments a human would have missed.
   const afterHours = live.filter((a) => {
@@ -97,7 +98,7 @@ export async function monthReport(month: string, withPrevious = true): Promise<M
     const s = svc.get(a.serviceId);
     const row = serviceAgg.get(a.serviceId) ?? { name: s?.name ?? "Servicio eliminado", count: 0, revenue: 0 };
     row.count++;
-    if (a.status === "completed") row.revenue += s?.price ?? 0;
+    if (a.status === "completed") row.revenue += price(a);
     serviceAgg.set(a.serviceId, row);
   }
 

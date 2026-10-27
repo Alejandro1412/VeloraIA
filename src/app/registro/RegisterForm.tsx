@@ -4,10 +4,13 @@ import Link from "next/link";
 import { useActionState } from "react";
 import { registerAction } from "../login/actions";
 
-const VERTICALS = ["Odontología", "Estética y spa", "Veterinaria", "Fisioterapia", "Barbería y peluquería", "Taller", "Consultorio médico", "Otro"];
+import { useSearchParams } from "next/navigation";
+import { VERTICALS } from "@/lib/verticals";
 
 export function RegisterForm() {
   const [state, action, pending] = useActionState(registerAction, null);
+  const tipo = useSearchParams().get("tipo") ?? "";
+  const preset = VERTICALS.includes(tipo) ? tipo : VERTICALS[0];
   const f = state?.fields;
 
   return (
@@ -30,7 +33,7 @@ export function RegisterForm() {
         <label htmlFor="vertical" className="label">
           Tipo de negocio
         </label>
-        <select id="vertical" name="vertical" defaultValue={f?.vertical || VERTICALS[0]} className="field" key={f?.vertical}>
+        <select id="vertical" name="vertical" defaultValue={f?.vertical || preset} className="field" key={f?.vertical}>
           {VERTICALS.map((v) => (
             <option key={v}>{v}</option>
           ))}

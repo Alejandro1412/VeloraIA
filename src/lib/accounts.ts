@@ -22,6 +22,8 @@ export interface User {
   businessId: string;
   /** Owners manage settings, team and billing; staff work the agenda and chats. */
   role?: Role;
+  /** Other businesses (branches) this person can switch to. */
+  memberships?: { businessId: string; role: Role }[];
   createdAt: string;
   lastLoginAt: string;
 }
@@ -289,12 +291,66 @@ export async function joinWithGoogle(invite: Invite, profile: { sub: string; ema
 
 export async function listTeam(businessId: string): Promise<User[]> {
   const users = await getRepo().list<User>(USERS);
-  return users.filter((u) => u.businessId === businessId).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  return users
+    .filter((u) => u.businessId === businessId || u.memberships?.some((m) => m.businessId === businessId))
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+}
+
+/* -------------------------------- branches -------------------------------- */
+
+/** Every business the person can open, with their role in each. */
+export function userBusinesses(user: User): { businessId: string; role: Role }[] {
+  const all = [{ businessId: user.businessId, role: user.role ?? "owner" }, ...(user.memberships ?? [])];
+  return all.filter((m, i) => all.findIndex((x) => x.businessId === m.businessId) === i);
+}
+
+export async function getUser(id: string) {
+  return getRepo().get<User>(USERS, id);
+}
+
+/** Creates another location owned by the same person. */
+export async function createBranch(userId: string, name: string, vertical?: string): Promise<Business> {
+  const user = await getUser(userId);
+  if (!user) throw new AccountError("invalid_credentials", "Tu sesión expiró. Vuelve a entrar.");
+  const business = await createBusinessFor(user.email, name, vertical);
+  await saveUser({ ...user, memberships: [...(user.memberships ?? []), { businessId: business.id, role: "owner" }] });
+  return business;
+}
+
+/** Remembers the last opened business so the next sign-in lands there. */
+export async function rememberBusiness(userId: string, businessId: string) {
+  const user = await getUser(userId);
+  if (!user) return null;
+  const access = userBusinesses(user).find((m) => m.businessId === businessId);
+  if (!access) return null;
+  const memberships = userBusinesses(user).filter((m) => m.businessId !== businessId);
+  await saveUser({ ...user, businessId, role: access.role, memberships });
+  return access;
+}
+
+/** Back-office updates from the IONEX admin panel. */
+export async function updateBusiness(id: string, patch: Partial<Pick<Business, "plan" | "trialEndsAt" | "paidUntil">>) {
+  const b = await getBusiness(id);
+  if (!b) throw new AccountError("invalid_credentials", "Negocio no encontrado");
+  const updated = { ...b, ...patch };
+  await getRepo().put(BUSINESSES, id, updated, { ts: b.createdAt });
+  return updated;
+}
+
+export async function listUsers() {
+  return getRepo().list<User>(USERS);
 }
 
 export async function removeMember(businessId: string, email: string) {
   const user = await getUserByEmail(email);
-  if (!user || user.businessId !== businessId) return;
+  if (!user) return;
+  if (user.businessId !== businessId) {
+    // Member through another location: just drop access to this one.
+    if (user.memberships?.some((m) => m.businessId === businessId)) {
+      await saveUser({ ...user, memberships: user.memberships.filter((m) => m.businessId !== businessId) });
+    }
+    return;
+  }
   if ((user.role ?? "owner") === "owner") throw new AccountError("invalid_credentials", "No puedes quitar al dueño del negocio.");
   await getRepo().remove(USERS, user.id);
   if (user.googleSub) await getRepo().remove(GOOGLE_INDEX, user.googleSub);

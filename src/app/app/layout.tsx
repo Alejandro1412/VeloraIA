@@ -4,8 +4,11 @@ import { Suspense } from "react";
 import { Logo } from "@/components/brand/Logo";
 import { Sidebar } from "@/components/app/Sidebar";
 import { ThemeToggle } from "@/components/fx/ThemeToggle";
+import { PwaRegister } from "@/components/app/PushControls";
 import { getSession } from "@/lib/auth";
-import { getBusiness } from "@/lib/accounts";
+import { getBusiness, getUser, userBusinesses } from "@/lib/accounts";
+import { isAdminEmail } from "@/lib/admin";
+import { BusinessSwitcher } from "@/components/app/BusinessSwitcher";
 import { subscriptionFor } from "@/lib/billing";
 import { listNotifications } from "@/lib/data/store";
 import { logoutAction } from "./actions";
@@ -40,6 +43,7 @@ export default function AppLayout({ children }: LayoutProps<"/app">) {
         </Suspense>
         {children}
       </div>
+      <PwaRegister />
     </div>
   );
 }
@@ -54,15 +58,28 @@ async function Nav() {
 async function Account() {
   const session = await getSession();
   if (!session) return null;
-  const business = session.demo ? null : await getBusiness(session.businessId);
+  if (session.demo) {
+    return (
+      <div className="min-w-0 border-t border-line px-3 pt-4 pb-2">
+        <p className="truncate text-sm font-medium">Modo demostración</p>
+        <p className="truncate text-xs text-muted">Clínica Dental Sonríe</p>
+      </div>
+    );
+  }
+  const user = await getUser(session.userId);
+  const access = user ? userBusinesses(user) : [{ businessId: session.businessId, role: session.role }];
+  const businesses = (
+    await Promise.all(access.map(async (m) => ({ id: m.businessId, name: (await getBusiness(m.businessId))?.name ?? "Negocio", role: m.role })))
+  ).filter((b) => b.name);
+  const current = businesses.find((b) => b.id === session.businessId) ?? { id: session.businessId, name: "Negocio", role: session.role };
   return (
-    <div className="min-w-0 border-t border-line px-3 pt-4 pb-2">
-      <p className="truncate text-sm font-medium">{session.demo ? "Modo demostración" : session.name}</p>
-      <p className="truncate text-xs text-muted">
-        {session.demo ? "Clínica Dental Sonríe" : (business?.name ?? session.email)}
-        {session.role === "staff" ? " · Equipo" : ""}
-      </p>
-    </div>
+    <BusinessSwitcher
+      person={session.name}
+      current={current}
+      businesses={businesses}
+      canAdd={session.role === "owner"}
+      admin={isAdminEmail(session.email)}
+    />
   );
 }
 

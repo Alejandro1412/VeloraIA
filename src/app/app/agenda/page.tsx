@@ -1,3 +1,4 @@
+import { intakeAnswers } from "@/lib/intake";
 import { appointmentLink, surveyLink } from "@/lib/links";
 import Link from "next/link";
 import { Suspense } from "react";
@@ -65,6 +66,9 @@ async function Agenda({ searchParams }: { searchParams: PageProps<"/app/agenda">
     deposit: a.deposit ? { amount: a.deposit.amount, status: a.deposit.status } : undefined,
     series: a.seriesId && a.seriesTotal ? { id: a.seriesId, index: a.seriesIndex ?? 1, total: a.seriesTotal } : undefined,
     rating: a.rating,
+    intake: intakeAnswers(ctx.settings.intakeFields, a.intake),
+    hasIntakeForm: !!ctx.settings.intakeFields?.length,
+    payment: a.payment ? { amount: a.payment.amount, method: a.payment.method } : undefined,
     manageUrl: appointmentLink(session.businessId, a.id),
     surveyUrl: surveyLink(session.businessId, a.id),
   }));

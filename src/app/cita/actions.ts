@@ -4,7 +4,7 @@ import { getBusiness } from "@/lib/accounts";
 import { getAvailability, rescheduleAppointment, setAppointmentStatus } from "@/lib/booking";
 import { BookingError } from "@/lib/domain/booking-errors";
 import { localToUtc } from "@/lib/domain/time";
-import { getAppointment, getSettings } from "@/lib/data/store";
+import { getAppointment, getSettings, saveAppointment } from "@/lib/data/store";
 import { onAppointmentEvent } from "@/lib/events";
 import { verifyLink } from "@/lib/links";
 import { DEMO_BUSINESS_ID, isValidBusinessId, withBusiness } from "@/lib/tenant";
@@ -64,5 +64,23 @@ export async function moveFromLink(ref: Ref, date: string, time: string): Promis
       if (err instanceof BookingError) return { error: "Ese horario se acaba de ocupar. Elige otro." };
       throw err;
     }
+  });
+}
+
+/** Saves the pre-visit form. Only questions the business configured are kept. */
+export async function saveIntakeFromLink(ref: Ref, answers: Record<string, string | boolean>): Promise<Result> {
+  return guarded(ref, async () => {
+    const [settings, apt] = await Promise.all([getSettings(), getAppointment(ref.appointmentId)]);
+    const fields = settings.intakeFields ?? [];
+    const clean: Record<string, string | boolean> = {};
+    for (const f of fields) {
+      const v = answers?.[f.id];
+      const value = f.type === "checkbox" ? v === true : typeof v === "string" ? v.trim().slice(0, 1000) : "";
+      if (f.type === "select" && value && !(f.options ?? []).includes(value as string)) return { error: `Elige una opción válida en “${f.label}”.` };
+      if (f.required && (value === "" || value === false)) return { error: `Falta: “${f.label}”.` };
+      clean[f.id] = value;
+    }
+    await saveAppointment({ ...apt!, intake: clean, intakeAt: new Date().toISOString() });
+    return { ok: true };
   });
 }
