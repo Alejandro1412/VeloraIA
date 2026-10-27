@@ -4,8 +4,10 @@ import { useActionState, useEffect, useMemo, useRef, useState, useTransition } f
 import { AnimatePresence, motion } from "motion/react";
 import { clsx } from "clsx";
 import {
+  assignStaffAction,
   createAppointmentAction,
   rescheduleAction,
+  setDepositAction,
   setStatusAction,
   slotsAction,
 } from "@/app/app/actions";
@@ -26,6 +28,15 @@ export interface BoardAppointment {
   price: number;
   customerName: string;
   customerPhone: string;
+  staffId?: string;
+  deposit?: { amount: number; status: "pending" | "paid" | "waived" };
+}
+
+export interface BoardStaff {
+  id: string;
+  name: string;
+  color: string;
+  serviceIds: string[];
 }
 
 interface Props {
@@ -36,6 +47,7 @@ interface Props {
   services: { id: string; name: string; durationMinutes: number }[];
   today: string;
   openNew: boolean;
+  staff: BoardStaff[];
 }
 
 const tone: Record<AppointmentStatus, string> = {
@@ -90,11 +102,15 @@ export function AgendaBoard(props: Props) {
   const [selected, setSelected] = useState<BoardAppointment | null>(null);
   const [newOpen, setNewOpen] = useState(props.openNew);
   const [showCancelled, setShowCancelled] = useState(false);
+  const [staffFilter, setStaffFilter] = useState("");
+  const staffById = useMemo(() => new Map(props.staff.map((s) => [s.id, s])), [props.staff]);
   const hours = Array.from({ length: props.endHour - props.startHour }, (_, i) => props.startHour + i);
   const total = (props.endHour - props.startHour) * 60;
   const top = (t: string) => ((toMinutes(t) - props.startHour * 60) / total) * 100;
 
-  const visible = props.appointments.filter((a) => showCancelled || a.status !== "cancelled");
+  const visible = props.appointments.filter(
+    (a) => (showCancelled || a.status !== "cancelled") && (!staffFilter || a.staffId === staffFilter || (staffFilter === "none" && !a.staffId)),
+  );
 
   return (
     <div className="px-5 py-6 lg:px-10">
@@ -115,6 +131,26 @@ export function AgendaBoard(props: Props) {
           Nueva cita
         </button>
       </div>
+
+      {props.staff.length > 0 && (
+        <div role="group" aria-label="Filtrar por profesional" className="mb-4 flex flex-wrap gap-1.5">
+          {[{ id: "", name: "Todos", color: "" }, ...props.staff, { id: "none", name: "Sin asignar", color: "" }].map((s) => (
+            <button
+              key={s.id || "all"}
+              type="button"
+              aria-pressed={staffFilter === s.id}
+              onClick={() => setStaffFilter(s.id)}
+              className={clsx(
+                "flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm transition-colors",
+                staffFilter === s.id ? "border-ink bg-ink text-white" : "border-line bg-paper text-ink-2 hover:border-ink-2",
+              )}
+            >
+              {s.color && <span className="size-2.5 rounded-full" style={{ background: s.color }} aria-hidden />}
+              {s.name}
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="overflow-x-auto rounded-2xl border border-line bg-paper">
         <div className="min-w-[760px]" style={{ display: "grid", gridTemplateColumns: `56px repeat(${props.days.length}, minmax(0,1fr))` }}>
@@ -156,8 +192,9 @@ export function AgendaBoard(props: Props) {
                       height: `calc(${top(a.end) - top(a.start)}% - 3px)`,
                       left: `calc(${(lane / lanes) * 100}% + 3px)`,
                       width: `calc(${100 / lanes}% - 6px)`,
+                      boxShadow: a.staffId && staffById.get(a.staffId) ? `inset 3px 0 0 ${staffById.get(a.staffId)!.color}` : undefined,
                     }}
-                    aria-label={`${a.customerName}, ${a.serviceName}, ${formatTimeEs(a.start)}, ${STATUS_LABEL[a.status]}`}
+                    aria-label={`${a.customerName}, ${a.serviceName}, ${formatTimeEs(a.start)}, ${STATUS_LABEL[a.status]}${a.staffId && staffById.get(a.staffId) ? `, con ${staffById.get(a.staffId)!.name}` : ""}`}
                   >
                     {short ? (
                       <span className="block truncate">
@@ -180,16 +217,18 @@ export function AgendaBoard(props: Props) {
       </div>
 
       <AnimatePresence>
-        {selected && <AppointmentDrawer key={selected.id} appointment={selected} onClose={() => setSelected(null)} today={props.today} />}
+        {selected && <AppointmentDrawer key={selected.id} appointment={selected} onClose={() => setSelected(null)} today={props.today} staff={props.staff} />}
       </AnimatePresence>
-      <NewAppointmentDialog open={newOpen} onClose={() => setNewOpen(false)} services={props.services} today={props.today} />
+      <NewAppointmentDialog open={newOpen} onClose={() => setNewOpen(false)} services={props.services} today={props.today} staff={props.staff} />
     </div>
   );
 }
 
 /* ------------------------------- detail drawer ------------------------------ */
 
-function AppointmentDrawer({ appointment: a, onClose, today }: { appointment: BoardAppointment; onClose: () => void; today: string }) {
+const DEPOSIT_LABEL = { pending: "Pendiente de pago", paid: "Pagado", waived: "Exonerado" } as const;
+
+function AppointmentDrawer({ appointment: a, onClose, today, staff }: { appointment: BoardAppointment; onClose: () => void; today: string; staff: BoardStaff[] }) {
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [moving, setMoving] = useState(false);
@@ -205,11 +244,11 @@ function AppointmentDrawer({ appointment: a, onClose, today }: { appointment: Bo
   useEffect(() => {
     if (!moving) return;
     let alive = true;
-    slotsAction(a.serviceId, date).then((s) => alive && setSlots(s));
+    slotsAction(a.serviceId, date, a.staffId).then((s) => alive && setSlots(s));
     return () => {
       alive = false;
     };
-  }, [moving, date, a.serviceId]);
+  }, [moving, date, a.serviceId, a.staffId]);
 
   const act = (status: AppointmentStatus) =>
     start(async () => {
@@ -223,6 +262,22 @@ function AppointmentDrawer({ appointment: a, onClose, today }: { appointment: Bo
       if (res?.error) setError(res.error);
       else onClose();
     });
+
+  const assign = (staffId: string) =>
+    start(async () => {
+      const res = await assignStaffAction(a.id, staffId);
+      if (res?.error) setError(res.error);
+      else onClose();
+    });
+
+  const deposit = (status: "paid" | "waived") =>
+    start(async () => {
+      const res = await setDepositAction(a.id, status);
+      if (res?.error) setError(res.error);
+      else onClose();
+    });
+
+  const eligible = staff.filter((s) => !s.serviceIds.length || s.serviceIds.includes(a.serviceId) || s.id === a.staffId);
 
   const phoneDigits = a.customerPhone.startsWith("+") ? a.customerPhone.replace(/\D/g, "") : "";
 
@@ -264,6 +319,44 @@ function AppointmentDrawer({ appointment: a, onClose, today }: { appointment: Bo
             </dd>
             <dt className="text-muted">Valor</dt>
             <dd>{formatMoney(a.price)}</dd>
+            {staff.length > 0 && (
+              <>
+                <dt className="text-muted">
+                  <label htmlFor="apt-staff">Profesional</label>
+                </dt>
+                <dd>
+                  <select id="apt-staff" value={a.staffId ?? ""} disabled={pending} onChange={(e) => assign(e.target.value)} className="field h-9 py-0 text-[15px]">
+                    <option value="">Sin asignar</option>
+                    {eligible.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}
+                      </option>
+                    ))}
+                  </select>
+                </dd>
+              </>
+            )}
+            {a.deposit && (
+              <>
+                <dt className="text-muted">Anticipo</dt>
+                <dd>
+                  <span className="tabular">{formatMoney(a.deposit.amount)}</span>{" "}
+                  <span className={clsx("ml-1 rounded-full px-2 py-0.5 text-xs font-medium", a.deposit.status === "paid" ? "bg-mint-soft text-[#0b7a5b]" : a.deposit.status === "pending" ? "bg-amber-soft text-[#8a5a12]" : "bg-line-soft text-ink-2")}>
+                    {DEPOSIT_LABEL[a.deposit.status]}
+                  </span>
+                  {a.deposit.status === "pending" && (
+                    <span className="mt-2 flex gap-3 text-sm">
+                      <button type="button" disabled={pending} onClick={() => deposit("paid")} className="font-medium text-cobalt hover:underline">
+                        Marcar pagado
+                      </button>
+                      <button type="button" disabled={pending} onClick={() => deposit("waived")} className="text-ink-2 hover:underline">
+                        Exonerar
+                      </button>
+                    </span>
+                  )}
+                </dd>
+              </>
+            )}
             <dt className="text-muted">Canal</dt>
             <dd>{CHANNEL_LABEL[a.source]}</dd>
             <dt className="text-muted">Celular</dt>
@@ -353,17 +446,22 @@ function NewAppointmentDialog({
   onClose,
   services,
   today,
+  staff,
 }: {
   open: boolean;
   onClose: () => void;
   services: Props["services"];
   today: string;
+  staff: BoardStaff[];
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   const [state, action, pending] = useActionState(createAppointmentAction, null);
   const [serviceId, setServiceId] = useState(services[0]?.id ?? "");
   const [date, setDate] = useState(today);
+  const [staffId, setStaffId] = useState("");
   const [slots, setSlots] = useState<string[] | null>(null);
+  const eligible = staff.filter((s) => !s.serviceIds.length || s.serviceIds.includes(serviceId));
+  const chosenStaff = eligible.some((s) => s.id === staffId) ? staffId : "";
   const formRef = useRef<HTMLFormElement>(null);
 
   useEffect(() => {
@@ -376,11 +474,11 @@ function NewAppointmentDialog({
   useEffect(() => {
     let alive = true;
     if (!serviceId || !date) return;
-    slotsAction(serviceId, date).then((s) => alive && setSlots(s));
+    slotsAction(serviceId, date, chosenStaff).then((s) => alive && setSlots(s));
     return () => {
       alive = false;
     };
-  }, [serviceId, date, state]);
+  }, [serviceId, date, chosenStaff, state]);
 
   useEffect(() => {
     if (state?.ok) {
@@ -418,6 +516,21 @@ function NewAppointmentDialog({
               ))}
             </select>
           </div>
+          {eligible.length > 0 && (
+            <div className="sm:col-span-2">
+              <label htmlFor="na-staff" className="label">
+                Profesional
+              </label>
+              <select id="na-staff" name="staffId" value={chosenStaff} onChange={(e) => (setSlots(null), setStaffId(e.target.value))} className="field">
+                <option value="">Cualquiera disponible</option>
+                {eligible.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
           <div>
             <label htmlFor="na-date" className="label">
               Fecha
@@ -434,7 +547,7 @@ function NewAppointmentDialog({
                 <p className="mt-1 text-xs text-muted">No hay espacios libres. Marca “Agendar aunque se cruce”.</p>
               </>
             ) : (
-              <select id="na-time" name="time" required className="field" disabled={slots === null} key={`${serviceId}-${date}-${timeOptions.length}`}>
+              <select id="na-time" name="time" required className="field" disabled={slots === null} key={`${serviceId}-${date}-${chosenStaff}-${timeOptions.length}`}>
                 {slots === null && <option>Buscando…</option>}
                 {timeOptions.map((t) => (
                   <option key={t} value={t}>

@@ -11,7 +11,8 @@ export const PLANS = [
       "Hasta 400 conversaciones al mes",
       "Agenda, reprogramación y cancelación",
       "Recordatorios automáticos",
-      "Panel de agenda y conversaciones",
+      "Anticipos con Wompi (PSE, Nequi, tarjeta)",
+      "Panel de agenda, clientes y hasta 3 profesionales",
     ],
   },
   {
@@ -24,8 +25,8 @@ export const PLANS = [
       "IA conversacional avanzada (Claude)",
       "Hasta 1.500 conversaciones al mes",
       "Atención de llamadas con voz",
-      "Traspaso a tu equipo con contexto",
-      "Revisión mensual de resultados",
+      "Hasta 10 profesionales con su propia agenda",
+      "Lista de espera y pedidos de reseña en Google",
     ],
   },
   {
@@ -35,9 +36,9 @@ export const PLANS = [
     for: "Negocios con varias sedes o alto volumen.",
     features: [
       "Todo lo del plan Profesional",
-      "Varias sedes y números",
       "Conversaciones ilimitadas",
-      "Integración con tu software actual",
+      "Hasta 50 profesionales",
+      "Acompañamiento para varias sedes",
       "Soporte prioritario por WhatsApp",
     ],
   },

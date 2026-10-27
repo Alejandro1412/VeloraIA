@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { requireSession } from "@/lib/auth";
 import { loadContext } from "@/lib/dashboard";
-import { listAppointments } from "@/lib/data/store";
+import { listAppointments, listStaff } from "@/lib/data/store";
 import { addDays, formatDateEs, MONTHS_ES, toMinutes, weekdayOf } from "@/lib/domain/time";
 import { PageHeader, PageSkeleton } from "@/components/app/ui";
 import { AgendaBoard, type BoardAppointment } from "@/components/app/AgendaBoard";
@@ -24,7 +24,7 @@ async function Agenda({ searchParams }: { searchParams: PageProps<"/app/agenda">
   const requested = typeof params.week === "string" && /^\d{4}-\d{2}-\d{2}$/.test(params.week) ? params.week : ctx.today;
   const monday = mondayOf(requested);
 
-  const raw = await listAppointments({ from: ctx.dayStart(monday), to: ctx.dayStart(addDays(monday, 7)) });
+  const [raw, staff] = await Promise.all([listAppointments({ from: ctx.dayStart(monday), to: ctx.dayStart(addDays(monday, 7)) }), listStaff()]);
   const appointments: BoardAppointment[] = raw.map(ctx.enrich).map((a) => ({
     id: a.id,
     date: a.localDate,
@@ -38,6 +38,8 @@ async function Agenda({ searchParams }: { searchParams: PageProps<"/app/agenda">
     price: a.service?.price ?? 0,
     customerName: a.customer?.name ?? "Cliente",
     customerPhone: a.customer?.phone ?? "",
+    staffId: a.staffId,
+    deposit: a.deposit ? { amount: a.deposit.amount, status: a.deposit.status } : undefined,
   }));
 
   const days = Array.from({ length: 7 }, (_, i) => addDays(monday, i)).filter(
@@ -82,6 +84,7 @@ async function Agenda({ searchParams }: { searchParams: PageProps<"/app/agenda">
         services={ctx.services.filter((s) => s.active).map((s) => ({ id: s.id, name: s.name, durationMinutes: s.durationMinutes }))}
         today={ctx.today}
         openNew={params.new === "1"}
+        staff={staff.filter((s) => s.active).map((s) => ({ id: s.id, name: s.name, color: s.color, serviceIds: s.serviceIds }))}
       />
     </>
   );

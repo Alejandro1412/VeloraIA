@@ -19,6 +19,7 @@ export interface Session {
   name: string;
   email: string;
   demo: boolean;
+  role: "owner" | "staff";
 }
 
 /**
@@ -40,8 +41,8 @@ export function authSecret() {
   return cachedKey;
 }
 
-export async function createSession(s: Omit<Session, "demo"> & { demo?: boolean }) {
-  const token = await new SignJWT({ biz: s.businessId, name: s.name, email: s.email, demo: !!s.demo })
+export async function createSession(s: Omit<Session, "demo" | "role"> & { demo?: boolean; role?: Session["role"] }) {
+  const token = await new SignJWT({ biz: s.businessId, name: s.name, email: s.email, demo: !!s.demo, role: s.role ?? "owner" })
     .setProtectedHeader({ alg: "HS256" })
     .setSubject(s.userId)
     .setIssuedAt()
@@ -76,6 +77,7 @@ export async function getSession(): Promise<Session | null> {
       name: String(payload.name ?? ""),
       email: String(payload.email ?? ""),
       demo: payload.demo === true,
+      role: payload.role === "staff" ? "staff" : "owner",
     };
   } catch {
     return null;
@@ -86,5 +88,12 @@ export async function getSession(): Promise<Session | null> {
 export async function requireSession(): Promise<Session> {
   const session = await getSession();
   if (!session) redirect("/login");
+  return session;
+}
+
+/** For settings, team and billing: owners only. */
+export async function requireOwner(): Promise<Session> {
+  const session = await requireSession();
+  if (session.role !== "owner") redirect("/app?permiso=1");
   return session;
 }

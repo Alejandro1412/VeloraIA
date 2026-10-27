@@ -9,15 +9,21 @@ import { nearestSlots, spreadSlots, type Slot } from "./availability";
 import { BookingError } from "./booking-errors";
 import { detectIntents, matchService, parseChoice, parseDate, parseName, parseTime } from "./nlu";
 import { addDays, formatDateEs, formatMoney, formatTimeEs, localParts, relativeDayEs, WEEKDAYS_ES } from "./time";
-import type { AgentState, Appointment, BusinessSettings, Service } from "./types";
+import type { AgentState, Appointment, BusinessSettings, Service, Staff } from "./types";
+import { normalize } from "./nlu";
 
 export interface AgentDeps {
   now: Date;
   settings: BusinessSettings;
   services: Service[];
   customerName?: string;
-  slots(serviceId: string, date: string, excludeAppointmentId?: string): Promise<Slot[]>;
-  book(input: { serviceId: string; start: string; name: string }): Promise<Appointment>;
+  /** Active professionals; lets customers ask for someone by name. */
+  staff?: Staff[];
+  slots(serviceId: string, date: string, excludeAppointmentId?: string, staffId?: string): Promise<Slot[]>;
+  book(input: { serviceId: string; start: string; name: string; staffId?: string }): Promise<Appointment>;
+  /** Payment link for a pending deposit, when the business collects one. */
+  paymentLink?(appointment: Appointment): string | null;
+  joinWaitlist?(input: { serviceId: string; date: string; name: string }): Promise<void>;
   reschedule(id: string, start: string): Promise<Appointment>;
   cancel(id: string): Promise<Appointment>;
   confirm(id: string): Promise<Appointment>;
@@ -54,6 +60,18 @@ class Receptionist {
   private local(iso: string) {
     return localParts(iso, this.d.settings.utcOffsetMinutes);
   }
+  private staffName(id?: string) {
+    return this.d.staff?.find((s) => s.id === id)?.name;
+  }
+  /** "con la doctora Ana", "con Carlos" → staff id. */
+  private matchStaff(text: string): string | undefined {
+    const t = normalize(text);
+    for (const s of this.d.staff ?? []) {
+      const first = normalize(s.name).split(" ").filter((w) => !["dr", "dra", "doctor", "doctora"].includes(w.replace(".", "")))[0];
+      if (first && first.length > 2 && new RegExp(`\\b${first}\\b`).test(t)) return s.id;
+    }
+    return undefined;
+  }
   private when(iso: string) {
     const p = this.local(iso);
     return `${relativeDayEs(p.date, this.today)} a las ${formatTimeEs(p.time)}`;
@@ -88,6 +106,8 @@ class Receptionist {
         return this.onPickAppointment(text, state);
       case "confirm_cancel":
         return this.onConfirmCancel(state, intents);
+      case "waitlist":
+        return this.onWaitlist(text, state, intents);
       default:
         return this.onIdle(text, intents);
     }
@@ -146,6 +166,8 @@ class Receptionist {
       const svc = matchService(text, this.services);
       if (svc) s.serviceId = svc.id;
     }
+    const preferred = this.matchStaff(text);
+    if (preferred) s.staffId = preferred;
     if (!s.serviceId) {
       return {
         reply: `¡Claro! ¿Qué servicio necesitas?\n\n${this.servicesList()}\n\nResponde con el número o el nombre.`,
@@ -159,7 +181,7 @@ class Receptionist {
 
     if (!date) return this.askDate(s, svc);
 
-    const slots = await this.d.slots(svc.id, date, s.appointmentId);
+    const slots = await this.d.slots(svc.id, date, s.appointmentId, s.staffId);
     if (!slots.length) return this.noRoom(s, svc, date);
 
     s.date = date;
@@ -176,16 +198,17 @@ class Receptionist {
     }
 
     const options = spreadSlots(slots, 6);
+    const withWho = s.staffId ? ` con ${this.staffName(s.staffId)}` : "";
     return {
       reply:
-        `Para *${svc.name}* ${relativeDayEs(date, this.today)} tengo:\n\n` +
+        `Para *${svc.name}*${withWho} ${relativeDayEs(date, this.today)} tengo:\n\n` +
         `${this.numbered(options.map((o) => formatTimeEs(o.time)))}\n\n¿Cuál prefieres? También puedes escribir otra hora.`,
       state: { ...s, step: "time", offeredSlots: options.map((o) => o.start) },
     };
   }
 
   private async askDate(s: AgentState, svc: Service): Promise<AgentResult> {
-    const days = await this.openDays(svc.id, s.appointmentId);
+    const days = await this.openDays(svc.id, s.appointmentId, this.today, s.staffId);
     return {
       reply:
         `Perfecto, *${svc.name}* (${svc.durationMinutes} min · ${formatMoney(svc.price, this.d.settings.currency)}). ¿Para qué día?\n\n` +
@@ -195,20 +218,29 @@ class Receptionist {
   }
 
   private async noRoom(s: AgentState, svc: Service, date: string): Promise<AgentResult> {
-    const closed = !this.d.settings.hours[new Date(`${date}T12:00:00Z`).getUTCDay()];
-    const days = await this.openDays(svc.id, s.appointmentId, date);
-    const why = closed ? `El ${WEEKDAYS_ES[new Date(`${date}T12:00:00Z`).getUTCDay()]} no atendemos` : `${relativeDayEs(date, this.today)[0].toUpperCase()}${relativeDayEs(date, this.today).slice(1)} ya no me quedan espacios`;
+    const weekday = new Date(`${date}T12:00:00Z`).getUTCDay();
+    const closed = !this.d.settings.hours[weekday];
+    const days = await this.openDays(svc.id, s.appointmentId, date, s.staffId);
+    const dayLabel = relativeDayEs(date, this.today);
+    const why = closed
+      ? `El ${WEEKDAYS_ES[weekday]} no atendemos`
+      : `${dayLabel[0].toUpperCase()}${dayLabel.slice(1)} ya no me quedan espacios${s.staffId ? ` con ${this.staffName(s.staffId)}` : ""}`;
+    const options = days.length
+      ? `Te puedo ofrecer:\n\n${this.numbered(days.map((d) => relativeDayEs(d, this.today)))}\n\n¿Cuál te queda mejor?`
+      : "No encuentro espacios en los próximos días.";
+    // Offer the waitlist only for open days that are simply full.
+    const canWait = !closed && s.intent === "book" && !!this.d.joinWaitlist;
     return {
-      reply: `${why} 😕 Te puedo ofrecer:\n\n${this.numbered(days.map((d) => relativeDayEs(d, this.today)))}\n\n¿Cuál te queda mejor?`,
-      state: { ...s, date: undefined, step: "date", offeredDates: days },
+      reply: `${why} 😕 ${options}${canWait ? `\n\nSi prefieres ese día, escribe *avísame* y te escribo si se libera un espacio.` : ""}`,
+      state: { ...s, date: undefined, step: "date", offeredDates: days, waitDate: canWait ? date : undefined },
     };
   }
 
-  private async openDays(serviceId: string, exclude?: string, from = this.today) {
+  private async openDays(serviceId: string, exclude?: string, from = this.today, staffId?: string) {
     const days: string[] = [];
     for (let i = 0; i <= this.d.settings.maxDaysAhead && days.length < 3; i++) {
       const date = addDays(from, i);
-      if ((await this.d.slots(serviceId, date, exclude)).length) days.push(date);
+      if ((await this.d.slots(serviceId, date, exclude, staffId)).length) days.push(date);
     }
     return days;
   }
@@ -226,6 +258,9 @@ class Receptionist {
   }
 
   private onDate(text: string, s: AgentState) {
+    if (s.waitDate && /\bavis(a|e)me\b|\blista de espera\b/.test(normalize(text))) {
+      return this.onWaitlist("sí", { ...s, step: "waitlist" }, new Set(["yes"]));
+    }
     const choice = parseChoice(text);
     if (choice && s.offeredDates?.[choice - 1]) {
       return this.advance({ ...s, date: s.offeredDates[choice - 1] }, "");
@@ -300,11 +335,21 @@ class Receptionist {
           event: "rescheduled",
         };
       }
-      const apt = await this.d.book({ serviceId: svc.id, start: s.slot!, name: s.name ?? this.d.customerName ?? "" });
+      const apt = await this.d.book({
+        serviceId: svc.id,
+        start: s.slot!,
+        name: s.name ?? this.d.customerName ?? "",
+        staffId: s.staffId,
+      });
+      const who = this.staffName(apt.staffId);
+      const link = apt.deposit?.status === "pending" ? this.d.paymentLink?.(apt) : null;
+      const deposit = link
+        ? `\n\nPara asegurar tu cupo paga el anticipo de *${formatMoney(apt.deposit!.amount, this.d.settings.currency)}* aquí (PSE, Nequi o tarjeta):\n${link}`
+        : "";
       return {
         reply:
-          `¡Cita agendada! ✅\n\n*${svc.name}*\n${this.when(apt.start)}${this.d.settings.address ? `\n${this.d.settings.address}` : ""}\n\n` +
-          `Te escribiré ${this.d.settings.reminderHoursBefore} horas antes para confirmar. Si necesitas cambiarla, solo dímelo.`,
+          `¡Cita agendada! ✅\n\n*${svc.name}*${who ? ` con ${who}` : ""}\n${this.when(apt.start)}${this.d.settings.address ? `\n${this.d.settings.address}` : ""}` +
+          `${deposit}\n\nTe escribiré ${this.d.settings.reminderHoursBefore} horas antes para confirmar. Si necesitas cambiarla, solo dímelo.`,
         state: IDLE,
         event: "booked",
         customerName: s.name,
@@ -369,6 +414,20 @@ class Receptionist {
     }
     if (intents.has("no")) return { reply: `Perfecto, tu cita sigue en pie 👍`, state: IDLE };
     return { reply: `¿Cancelo la cita? Responde *sí* o *no*.`, state: s };
+  }
+
+  /* -------------------------------- waitlist ------------------------------- */
+
+  private async onWaitlist(text: string, s: AgentState, intents: Set<string>): Promise<AgentResult> {
+    if (intents.has("no")) return { reply: `Perfecto. Si quieres otro día, dime cuál 🙂`, state: { ...s, step: "date" } };
+    const name = s.name ?? this.d.customerName ?? parseName(text) ?? undefined;
+    if (!name) return { reply: `¿A nombre de quién te anoto en la lista de espera?`, state: { ...s, step: "waitlist" } };
+    await this.d.joinWaitlist!({ serviceId: s.serviceId!, date: s.waitDate!, name });
+    return {
+      reply: `Listo, ${name.split(" ")[0]}. Te anoté en la lista de espera para *${relativeDayEs(s.waitDate!, this.today)}*. Si se libera un espacio, te escribo 🙌`,
+      state: IDLE,
+      customerName: name,
+    };
   }
 
   /* --------------------------------- info --------------------------------- */

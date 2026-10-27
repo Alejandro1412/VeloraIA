@@ -8,7 +8,11 @@ Un producto de **IONEX**. Velora contesta WhatsApp y llamadas las 24 horas, agen
 |---|---|---|
 | Sitio comercial | `/` | Landing con animaciones de scroll (GSAP ScrollTrigger + Lenis + SplitText), demo en vivo, calculadora de ahorro y planes. |
 | Registro e inicio de sesión | `/registro`, `/login` | Cada negocio crea su cuenta con correo y contraseña o con Google. |
-| Panel del negocio | `/app` | Resumen, agenda semanal, conversaciones con toma de control humana, servicios y ajustes. Cada cuenta ve solo sus datos. |
+| Panel del negocio | `/app` | Resumen, agenda semanal por profesional, conversaciones con toma de control humana, clientes (historial, notas, CSV), servicios (días, descanso, anticipo), profesionales y días cerrados, equipo con roles, avisos, plan y pagos, ajustes. Cada cuenta ve solo sus datos. |
+| Invitaciones y recuperación | `/invitacion/<token>`, `/recuperar` | Enlaces de un solo uso para sumar al equipo (rol "Equipo") y restablecer la contraseña por correo. |
+| Anticipos y suscripción | `/pagar/...`, `POST /api/wompi/webhook` | Wompi: anticipos con las llaves de cada negocio y cobro mensual de IONEX, con firma verificada e idempotencia. |
+| Calendario | `/api/calendar/<token>.ics` | Feed iCalendar para suscribirse desde Google Calendar, Outlook o Apple (opcional `?staff=`). |
+| Botón para sitios web | `/widget.js` | `<script src=".../widget.js" data-business="<id>" async>` abre la reserva en un panel flotante. |
 | Página de reservas | `/reservar/<id>` | Enlace público de cada negocio para que sus clientes agenden con Sofía. |
 | Chat web | `POST /api/chat` | El mismo agente que atiende WhatsApp y voz. |
 | WhatsApp | `/api/whatsapp/webhook` | WhatsApp Business Cloud API de Meta, con verificación de firma. |
@@ -61,7 +65,9 @@ Sin variables de entorno arranca en **modo demo**: los datos viven en memoria y 
 3. **IA:** define `ANTHROPIC_API_KEY` (opcional `AI_MODEL`).
 4. **WhatsApp:** en Meta for Developers crea la app de WhatsApp de IONEX, registra el webhook `https://TU-DOMINIO/api/whatsapp/webhook` con tu `WHATSAPP_VERIFY_TOKEN`, suscríbete a `messages` y define `WHATSAPP_TOKEN` y `WHATSAPP_APP_SECRET`. Cada negocio escribe el *ID de su número* en Ajustes y los mensajes a ese número llegan a su panel. Para recordatorios fuera de la ventana de 24 h, aprueba una plantilla con 4 variables (nombre, servicio, día, hora) y ponla en `WHATSAPP_REMINDER_TEMPLATE`.
 5. **Voz (opcional):** en Twilio apunta "A call comes in" a `https://TU-DOMINIO/api/voice?b=<ID del negocio>` (POST) y define `TWILIO_AUTH_TOKEN`.
-6. **Recordatorios:** define `CRON_SECRET`. El cron ya está en `vercel.json`.
+6. **Recordatorios y reseñas:** define `CRON_SECRET`. El cron ya está en `vercel.json`; además de recordar citas, pide una reseña de Google a quien fue atendido si el negocio puso su enlace en Ajustes.
+7. **Correos:** crea una cuenta en Resend, verifica tu dominio y define `RESEND_API_KEY` y `EMAIL_FROM`. Sin esto, los avisos quedan solo en el panel y la recuperación de contraseña no envía correo.
+8. **Cobro de suscripciones:** define `WOMPI_PUBLIC_KEY`, `WOMPI_INTEGRITY_SECRET` y `WOMPI_EVENTS_SECRET` (cuenta Wompi de IONEX) y registra la URL de eventos `https://TU-DOMINIO/api/wompi/webhook`. Cada negocio tiene 14 días de prueba y 5 de gracia al vencer.
 
 Todas las variables están documentadas en `.env.example`.
 

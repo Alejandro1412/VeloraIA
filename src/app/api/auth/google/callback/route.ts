@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { exchangeCode, googleConfigured } from "@/lib/google";
-import { signInWithGoogle } from "@/lib/accounts";
+import { getUserByEmail, getValidInvite, joinWithGoogle, signInWithGoogle } from "@/lib/accounts";
 import { createSession } from "@/lib/auth";
 
 const COOKIE = "velora_google_oauth";
@@ -27,10 +27,22 @@ export async function GET(req: NextRequest) {
 
   try {
     const profile = await exchangeCode({ code, verifier: saved.verifier, nonce: saved.nonce, origin: req.nextUrl.origin });
-    const { user, isNew } = await signInWithGoogle(profile);
-    await createSession({ userId: user.id, businessId: user.businessId, name: user.name, email: user.email });
-    const res = NextResponse.redirect(new URL(isNew ? "/app/ajustes?bienvenida=1" : "/app", req.url));
+    // Joining a team through an invite link (only for people without an account).
+    const inviteToken = req.cookies.get("velora_invite")?.value;
+    const invite = inviteToken ? await getValidInvite(inviteToken) : null;
+    let destination = "/app";
+    let user;
+    if (invite && !(await getUserByEmail(profile.email))) {
+      user = await joinWithGoogle(invite, profile);
+    } else {
+      const result = await signInWithGoogle(profile);
+      user = result.user;
+      if (result.isNew) destination = "/app/ajustes?bienvenida=1";
+    }
+    await createSession({ userId: user.id, businessId: user.businessId, name: user.name, email: user.email, role: user.role });
+    const res = NextResponse.redirect(new URL(destination, req.url));
     res.cookies.delete({ name: COOKIE, path: "/api/auth/google" });
+    res.cookies.delete("velora_invite");
     return res;
   } catch (err) {
     console.error("[velora] Google sign-in failed", err);

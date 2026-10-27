@@ -63,6 +63,24 @@ export function SettingsForm({ settings: s, demo = false }: { settings: Business
         </div>
       </fieldset>
 
+      <fieldset className="space-y-4">
+        <legend className="font-display text-xl font-semibold tracking-tight">Avisos para ti</legend>
+        <p className="text-sm text-ink-2">Te avisamos de citas nuevas, cancelaciones y clientes que piden hablar con tu equipo.</p>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field id="notifyEmail" label="Correo para avisos" type="email" defaultValue={s.notifyEmail ?? ""} placeholder="tu@negocio.com" />
+          <Field id="notifyWhatsapp" label="WhatsApp para avisos" type="tel" defaultValue={s.notifyWhatsapp ?? ""} placeholder="+57 300 123 4567" />
+          <div className="sm:col-span-2">
+            <Field
+              id="googleReviewUrl"
+              label="Enlace para dejar reseña en Google (se envía después de cada cita atendida)"
+              type="url"
+              defaultValue={s.googleReviewUrl ?? ""}
+              placeholder="https://g.page/r/…/review"
+            />
+          </div>
+        </div>
+      </fieldset>
+
       <fieldset>
         <legend className="font-display text-xl font-semibold tracking-tight">Horario de atención</legend>
         <div className="mt-4 overflow-x-auto rounded-2xl border border-line bg-paper">

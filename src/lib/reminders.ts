@@ -73,3 +73,38 @@ export async function sendDueReminders(now = new Date()): Promise<ReminderRun> {
   }
   return run;
 }
+
+/**
+ * Asks customers seen in the last two days for a Google review, once per
+ * appointment. Needs the business' review link and WhatsApp.
+ */
+export async function sendReviewRequests(now = new Date()): Promise<ReminderRun> {
+  const settings = await getSettings();
+  const run: ReminderRun = { checked: 0, sent: 0, skipped: 0, failed: [] };
+  const url = settings.googleReviewUrl;
+  const fromNumber = settings.whatsappPhoneNumberId || undefined;
+  if (!url || !whatsappConfigured() || !(fromNumber || process.env.WHATSAPP_PHONE_NUMBER_ID)) return run;
+
+  const items = await listAppointments({ from: new Date(now.getTime() - 48 * 3_600_000).toISOString(), to: now.toISOString() });
+  const due = items.filter((a) => a.status === "completed" && !a.reviewRequestedAt);
+  run.checked = due.length;
+  for (const apt of due) {
+    const customer = await getCustomer(apt.customerId);
+    if (!customer || !/^\+\d{8,15}$/.test(customer.phone)) {
+      run.skipped++;
+      continue;
+    }
+    const first = customer.name.split(" ")[0] || "";
+    const text = `Hola ${first}, gracias por visitarnos en ${settings.name} 💙 ¿Nos ayudas con una reseña de 30 segundos? Nos ayuda muchísimo: ${url}`;
+    try {
+      const template = process.env.WHATSAPP_REVIEW_TEMPLATE;
+      if (template) await sendTemplate(customer.phone, template, [first, settings.name, url], "es", fromNumber);
+      else await sendText(customer.phone, text, fromNumber);
+      await saveAppointment({ ...apt, reviewRequestedAt: new Date().toISOString() });
+      run.sent++;
+    } catch (err) {
+      run.failed.push({ id: apt.id, error: (err as Error).message });
+    }
+  }
+  return run;
+}

@@ -39,6 +39,61 @@ export interface BusinessSettings {
   currency: string;
   /** Meta phone-number ID whose inbound WhatsApp messages belong to this business. */
   whatsappPhoneNumberId?: string;
+  /** Where to alert the owner about new bookings, cancellations and handoffs. */
+  notifyEmail?: string;
+  notifyWhatsapp?: string;
+  /** Link customers get after a completed appointment to leave a Google review. */
+  googleReviewUrl?: string;
+  /** Business' own Wompi account, used to collect appointment deposits. */
+  wompiPublicKey?: string;
+  wompiIntegritySecret?: string;
+  wompiEventsSecret?: string;
+  /** Secret token for the read-only calendar feed (.ics). */
+  calendarToken?: string;
+}
+
+/** A person (or chair/room) appointments are booked with. */
+export interface Staff {
+  id: string;
+  name: string;
+  /** Services this professional performs. Empty = all services. */
+  serviceIds: string[];
+  /** Weekdays (0 = Sunday) this professional does not work. */
+  daysOff: number[];
+  color: string;
+  active: boolean;
+}
+
+/** Dates the business is closed (holidays, vacations). Optionally for one professional only. */
+export interface Closure {
+  id: string;
+  from: string; // YYYY-MM-DD local, inclusive
+  to: string; // YYYY-MM-DD local, inclusive
+  reason: string;
+  staffId?: string;
+}
+
+export interface WaitlistEntry {
+  id: string;
+  customerPhone: string;
+  customerName: string;
+  serviceId: string;
+  date: string; // YYYY-MM-DD local
+  conversationId: string;
+  createdAt: string;
+  notifiedAt: string | null;
+}
+
+export type NotificationKind = "booked" | "rescheduled" | "cancelled" | "handoff" | "deposit_paid" | "waitlist";
+
+export interface Notification {
+  id: string;
+  kind: NotificationKind;
+  title: string;
+  body: string;
+  href: string;
+  read: boolean;
+  createdAt: string;
 }
 
 export interface Service {
@@ -49,6 +104,12 @@ export interface Service {
   description: string;
   keywords: string[];
   active: boolean;
+  /** Weekdays (0 = Sunday) the service is offered. Empty/undefined = every open day. */
+  days?: number[];
+  /** Cleanup/prep time blocked after each appointment. */
+  bufferMinutes?: number;
+  /** Deposit required to secure the booking (COP). 0/undefined = none. */
+  depositAmount?: number;
 }
 
 export interface Customer {
@@ -56,6 +117,14 @@ export interface Customer {
   name: string;
   phone: string;
   createdAt: string;
+  notes?: string;
+}
+
+export interface Deposit {
+  amount: number;
+  status: "pending" | "paid" | "waived";
+  reference: string;
+  paidAt?: string;
 }
 
 export type AppointmentStatus =
@@ -78,6 +147,9 @@ export interface Appointment {
   notes: string;
   reminderSentAt: string | null;
   createdAt: string;
+  staffId?: string;
+  deposit?: Deposit;
+  reviewRequestedAt?: string | null;
 }
 
 export type MessageRole = "customer" | "assistant" | "staff";
@@ -100,7 +172,8 @@ export interface AgentState {
     | "name"
     | "confirm"
     | "pick_appointment"
-    | "confirm_cancel";
+    | "confirm_cancel"
+    | "waitlist";
   intent: "book" | "reschedule" | "cancel" | null;
   serviceId?: string;
   date?: string; // YYYY-MM-DD local
@@ -110,6 +183,9 @@ export interface AgentState {
   offeredAppointments?: string[];
   appointmentId?: string;
   name?: string;
+  staffId?: string;
+  /** Full day the customer asked for, offered via the waitlist. */
+  waitDate?: string;
 }
 
 export interface Conversation {

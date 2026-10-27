@@ -17,5 +17,16 @@ export async function GET(req: NextRequest) {
     path: "/api/auth/google",
     maxAge: 600,
   });
+  // Team invite links send people here with ?invite=<token>.
+  const invite = req.nextUrl.searchParams.get("invite");
+  if (invite && /^[A-Za-z0-9_-]{20,40}$/.test(invite)) {
+    res.cookies.set("velora_invite", invite, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: 900,
+    });
+  }
   return res;
 }

@@ -31,7 +31,15 @@ export function AuthShell({ children, aside }: { children: ReactNode; aside: Rea
   );
 }
 
-export function GoogleButton({ enabled, label = "Continuar con Google" }: { enabled: boolean; label?: string }) {
+export function GoogleButton({
+  enabled,
+  label = "Continuar con Google",
+  href = "/api/auth/google",
+}: {
+  enabled: boolean;
+  label?: string;
+  href?: string;
+}) {
   const icon = (
     <svg viewBox="0 0 18 18" className="size-[18px]" aria-hidden>
       <path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92c1.7-1.57 2.68-3.88 2.68-6.62z" />
@@ -53,7 +61,7 @@ export function GoogleButton({ enabled, label = "Continuar con Google" }: { enab
   }
   return (
     // A plain link: the OAuth flow is a full-page redirect, not a client fetch.
-    <a href="/api/auth/google" className="btn-ghost w-full bg-paper">
+    <a href={href} className="btn-ghost w-full bg-paper">
       {icon}
       {label}
     </a>

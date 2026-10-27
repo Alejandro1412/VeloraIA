@@ -23,6 +23,15 @@ export function ServicesEditor({ services }: { services: Service[] }) {
                 <div className="min-w-0">
                   <p className={clsx("font-medium", !s.active && "text-muted line-through")}>{s.name}</p>
                   <p className="truncate text-sm text-muted">{s.description || "Sin descripción"}</p>
+                  {(!!s.depositAmount || !!s.bufferMinutes || !!s.days?.length) && (
+                    <p className="mt-1 flex flex-wrap gap-1.5 text-xs">
+                      {!!s.depositAmount && <span className="rounded-full bg-mint-soft px-2 py-0.5 text-[#0b7a5b]">Anticipo {formatMoney(s.depositAmount)}</span>}
+                      {!!s.bufferMinutes && <span className="rounded-full bg-line-soft px-2 py-0.5 text-ink-2">+{s.bufferMinutes} min descanso</span>}
+                      {!!s.days?.length && (
+                        <span className="rounded-full bg-line-soft px-2 py-0.5 text-ink-2">{DAYS.filter(([d]) => s.days!.includes(d)).map(([, l]) => l).join(" · ")}</span>
+                      )}
+                    </p>
+                  )}
                 </div>
                 <p className="tabular text-sm text-ink-2">{s.durationMinutes} min</p>
                 <p className="tabular text-sm text-ink-2">{formatMoney(s.price)}</p>
@@ -47,6 +56,16 @@ export function ServicesEditor({ services }: { services: Service[] }) {
     </div>
   );
 }
+
+const DAYS: [number, string][] = [
+  [1, "Lun"],
+  [2, "Mar"],
+  [3, "Mié"],
+  [4, "Jue"],
+  [5, "Vie"],
+  [6, "Sáb"],
+  [0, "Dom"],
+];
 
 function ServiceForm({ service, onDone }: { service?: Service; onDone: () => void }) {
   const [state, action, pending] = useActionState(saveServiceAction, null);
@@ -90,6 +109,40 @@ function ServiceForm({ service, onDone }: { service?: Service; onDone: () => voi
         </label>
         <input id={`${id}-kw`} name="keywords" defaultValue={service?.keywords.join(", ")} placeholder="limpieza, sarro, profilaxis" className="field" />
       </div>
+      <div>
+        <label htmlFor={`${id}-buf`} className="label">
+          Descanso después (min)
+        </label>
+        <input id={`${id}-buf`} name="bufferMinutes" type="number" min={0} max={240} step={5} defaultValue={service?.bufferMinutes ?? 0} className="field" />
+      </div>
+      <div>
+        <label htmlFor={`${id}-dep`} className="label">
+          Anticipo (COP)
+        </label>
+        <input id={`${id}-dep`} name="depositAmount" type="number" min={0} step={1000} defaultValue={service?.depositAmount ?? 0} className="field" />
+      </div>
+      <fieldset className="sm:col-span-2">
+        <legend className="label">Días en que se ofrece</legend>
+        <div className="flex flex-wrap gap-1.5">
+          {DAYS.map(([value, label]) => (
+            <label key={value} className="cursor-pointer">
+              <input
+                type="checkbox"
+                name="days"
+                value={value}
+                defaultChecked={!service?.days?.length || service.days.includes(value)}
+                className="peer sr-only"
+              />
+              <span className="inline-grid h-9 min-w-11 place-items-center rounded-full border border-line px-3 text-sm text-ink-2 peer-checked:border-ink peer-checked:bg-ink peer-checked:text-white peer-focus-visible:ring-2 peer-focus-visible:ring-cobalt">
+                {label}
+              </span>
+            </label>
+          ))}
+        </div>
+      </fieldset>
+      <p className="text-xs text-muted sm:col-span-4">
+        El anticipo se cobra con Wompi al agendar (conéctalo en Ajustes); con 0 no se cobra. El descanso bloquea tiempo para limpiar o preparar entre citas.
+      </p>
       <div className="flex flex-wrap items-center justify-between gap-3 sm:col-span-4">
         <label className="flex items-center gap-2 text-sm text-ink-2">
           <input type="checkbox" name="active" defaultChecked={service?.active ?? true} className="accent-cobalt" />

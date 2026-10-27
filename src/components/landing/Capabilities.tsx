@@ -14,7 +14,7 @@ const items = [
   },
   {
     title: "Contesta llamadas con voz",
-    body: "Si tu línea timbra cuando estás atendiendo, Velora contesta, entiende lo que te piden y agenda igual que por chat.",
+    body: "En el plan Profesional, si tu línea timbra cuando estás atendiendo, Velora contesta, entiende lo que te piden y agenda igual que por chat.",
   },
   {
     title: "Sabe cuándo pasarte la conversación",

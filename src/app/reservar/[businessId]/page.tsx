@@ -29,26 +29,51 @@ export async function generateMetadata({ params }: PageProps<"/reservar/[busines
   };
 }
 
-export default function BookingPage({ params }: PageProps<"/reservar/[businessId]">) {
+export default function BookingPage({ params, searchParams }: PageProps<"/reservar/[businessId]">) {
   return (
     <main className="min-h-dvh">
       <Suspense fallback={<div className="mx-auto h-dvh max-w-[1100px] animate-pulse px-5 py-10" />}>
-        <Booking params={params} />
+        <Booking params={params} searchParams={searchParams} />
       </Suspense>
     </main>
   );
 }
 
-async function Booking({ params }: { params: PageProps<"/reservar/[businessId]">["params"] }) {
-  const { businessId } = await params;
+const PAYMENT_NOTICE: Record<string, string> = {
+  enviado: "Recibimos tu pago. En cuanto Wompi lo confirme, tu cita quedará asegurada.",
+  listo: "Este anticipo ya está pagado. ¡Te esperamos!",
+  "no-disponible": "Este enlace de pago ya no está disponible. Escríbenos para ayudarte.",
+};
+
+async function Booking({
+  params,
+  searchParams,
+}: {
+  params: PageProps<"/reservar/[businessId]">["params"];
+  searchParams: PageProps<"/reservar/[businessId]">["searchParams"];
+}) {
+  const [{ businessId }, query] = await Promise.all([params, searchParams]);
   const data = await load(businessId);
   if (!data) notFound();
   const { settings, services } = data;
   const order = [1, 2, 3, 4, 5, 6, 0];
+  const notice = typeof query.pago === "string" ? PAYMENT_NOTICE[query.pago] : undefined;
+  const chat = (
+    <ChatWidget
+      businessId={businessId}
+      greeting={settings.welcomeMessage}
+      assistantName={settings.assistantName}
+      bookedNote={`Tu cita quedó registrada en la agenda de ${settings.name}.`}
+    />
+  );
+
+  // Embedded in a business website through /widget.js: just the chat.
+  if (query.embed === "1") return <div className="h-dvh [&>div]:rounded-none [&>div]:border-0">{chat}</div>;
 
   return (
     <div className="mx-auto grid max-w-[1100px] gap-10 px-5 py-8 sm:py-12 lg:grid-cols-[0.85fr_1.15fr] lg:gap-14">
       <section className="lg:pt-6">
+        {notice && <p role="status" className="mb-6 rounded-2xl bg-mint-soft px-4 py-3 text-[15px]">{notice}</p>}
         <p className="text-sm text-muted">{settings.vertical}</p>
         <h1 className="mt-2 font-display text-[clamp(2.2rem,5vw,3.4rem)] leading-[1] font-semibold tracking-[-0.03em]">{settings.name}</h1>
         <p className="mt-4 max-w-sm text-lg text-ink-2">Agenda, mueve o cancela tu cita escribiéndole a {settings.assistantName}. Responde al instante.</p>
@@ -95,14 +120,7 @@ async function Booking({ params }: { params: PageProps<"/reservar/[businessId]">
         )}
       </section>
 
-      <section className="h-[640px] max-h-[86dvh]">
-        <ChatWidget
-          businessId={businessId}
-          greeting={settings.welcomeMessage}
-          assistantName={settings.assistantName}
-          bookedNote={`Tu cita quedó registrada en la agenda de ${settings.name}.`}
-        />
-      </section>
+      <section className="h-[640px] max-h-[86dvh]">{chat}</section>
 
       <footer className="flex items-center gap-2 text-sm text-muted lg:col-span-2">
         <LogoMark className="size-5" />

@@ -10,7 +10,12 @@ import type {
   Customer,
   Message,
   MessageRole,
+  Notification,
+  NotificationKind,
   Service,
+  Staff,
+  Closure,
+  WaitlistEntry,
 } from "../domain/types";
 
 /**
@@ -19,7 +24,17 @@ import type {
  * query can never cross into another customer's agenda.
  */
 
-type Collection = "settings" | "service" | "customer" | "appointment" | "conversation" | "message";
+type Collection =
+  | "settings"
+  | "service"
+  | "customer"
+  | "appointment"
+  | "conversation"
+  | "message"
+  | "staff"
+  | "closure"
+  | "waitlist"
+  | "notification";
 
 const scopedKind = (businessId: string, collection: Collection) => `${businessId}:${collection}`;
 
@@ -151,6 +166,11 @@ export async function upsertCustomer(phone: string, name: string): Promise<Custo
   return customer;
 }
 
+export async function saveCustomer(customer: Customer) {
+  const { repo, k } = await scope();
+  await repo.put(k("customer"), customer.id, customer, { ts: customer.createdAt });
+}
+
 export async function listCustomers() {
   const { repo, k } = await scope();
   return repo.list<Customer>(k("customer"), { order: "desc" });
@@ -234,4 +254,97 @@ export async function addMessage(conversationId: string, role: MessageRole, text
   const message: Message = { id: uid("msg"), conversationId, role, text, createdAt: new Date().toISOString() };
   await repo.put(k("message"), message.id, message, { ts: message.createdAt, parent: conversationId });
   return message;
+}
+
+/* ------------------------------ professionals ----------------------------- */
+
+const STAFF_COLORS = ["#2b4cff", "#14b88a", "#e9a23b", "#f0475b", "#7a5af8", "#0ea5e9", "#d946ef", "#64748b"];
+
+export async function listStaff(opts: { activeOnly?: boolean } = {}): Promise<Staff[]> {
+  const { repo, k } = await scope();
+  const all = (await repo.list<Staff>(k("staff"))).sort((a, b) => a.name.localeCompare(b.name, "es"));
+  return opts.activeOnly ? all.filter((s) => s.active) : all;
+}
+
+export async function saveStaff(input: Omit<Staff, "id" | "color"> & { id?: string; color?: string }) {
+  const { repo, k } = await scope();
+  const existing = input.id ? await repo.get<Staff>(k("staff"), input.id) : null;
+  const count = (await repo.list<Staff>(k("staff"))).length;
+  const staff: Staff = {
+    ...input,
+    id: input.id || uid("stf"),
+    color: input.color ?? existing?.color ?? STAFF_COLORS[count % STAFF_COLORS.length],
+  };
+  await repo.put(k("staff"), staff.id, staff);
+  return staff;
+}
+
+export async function deleteStaff(id: string) {
+  const { repo, k } = await scope();
+  await repo.remove(k("staff"), id);
+}
+
+/* -------------------------------- closures -------------------------------- */
+
+export async function listClosures(): Promise<Closure[]> {
+  const { repo, k } = await scope();
+  return (await repo.list<Closure>(k("closure"))).sort((a, b) => a.from.localeCompare(b.from));
+}
+
+export async function saveClosure(input: Omit<Closure, "id">) {
+  const { repo, k } = await scope();
+  const closure: Closure = { ...input, id: uid("cls") };
+  await repo.put(k("closure"), closure.id, closure);
+  return closure;
+}
+
+export async function deleteClosure(id: string) {
+  const { repo, k } = await scope();
+  await repo.remove(k("closure"), id);
+}
+
+/* -------------------------------- waitlist -------------------------------- */
+
+export async function addToWaitlist(input: Omit<WaitlistEntry, "id" | "createdAt" | "notifiedAt">) {
+  const { repo, k } = await scope();
+  const entry: WaitlistEntry = { ...input, id: uid("wl"), createdAt: new Date().toISOString(), notifiedAt: null };
+  await repo.put(k("waitlist"), entry.id, entry, { ts: entry.createdAt });
+  return entry;
+}
+
+export async function listWaitlist(): Promise<WaitlistEntry[]> {
+  const { repo, k } = await scope();
+  return repo.list<WaitlistEntry>(k("waitlist"));
+}
+
+export async function saveWaitlistEntry(entry: WaitlistEntry) {
+  const { repo, k } = await scope();
+  await repo.put(k("waitlist"), entry.id, entry, { ts: entry.createdAt });
+}
+
+/* ------------------------------ notifications ----------------------------- */
+
+export async function addNotification(input: { kind: NotificationKind; title: string; body: string; href: string }) {
+  const { repo, k } = await scope();
+  const n: Notification = { ...input, id: uid("ntf"), read: false, createdAt: new Date().toISOString() };
+  await repo.put(k("notification"), n.id, n, { ts: n.createdAt });
+  return n;
+}
+
+export async function listNotifications(limit = 50): Promise<Notification[]> {
+  const { repo, k } = await scope();
+  return repo.list<Notification>(k("notification"), { order: "desc", limit });
+}
+
+export async function markNotificationsRead() {
+  const { repo, k } = await scope();
+  const unread = (await repo.list<Notification>(k("notification"), { order: "desc", limit: 200 })).filter((n) => !n.read);
+  await Promise.all(unread.map((n) => repo.put(k("notification"), n.id, { ...n, read: true }, { ts: n.createdAt })));
+}
+
+/** Conversations started this calendar month (UTC), used for plan limits. */
+export async function countConversationsSince(fromIso: string) {
+  const { repo, k } = await scope();
+  const items = await repo.list<Conversation>(k("conversation"), { order: "desc", limit: 5000 });
+  return items.filter((c) => c.createdAt >= fromIso).length;
 }
