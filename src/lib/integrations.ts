@@ -60,6 +60,13 @@ export function integrationStatus(): IntegrationStatus[] {
       env: ["CRON_SECRET"],
     },
     {
+      key: "email",
+      name: "Correos (Resend)",
+      connected: !!process.env.RESEND_API_KEY,
+      detail: process.env.RESEND_API_KEY ? "Avisos, recuperación de contraseña e informe mensual por correo." : "Define RESEND_API_KEY y EMAIL_FROM para enviar correos.",
+      env: ["RESEND_API_KEY", "EMAIL_FROM"],
+    },
+    {
       key: "google",
       name: "Acceso con Google",
       connected: googleConfigured(),
