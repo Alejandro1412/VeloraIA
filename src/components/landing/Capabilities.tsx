@@ -63,11 +63,12 @@ export function Capabilities() {
         </h2>
         <ul className="mt-16 border-t border-line">
           {items.map((it) => (
-            <li key={it.title} className="grid gap-4 border-b border-line py-9 md:grid-cols-[1.25fr_1fr] md:gap-12 md:py-12">
+            <li key={it.title} className="group relative grid gap-4 border-b border-line py-9 md:grid-cols-[1.25fr_1fr] md:gap-12 md:py-12">
+              <span aria-hidden className="absolute bottom-[-1px] left-0 h-px w-full origin-left scale-x-0 bg-gradient-to-r from-cobalt to-mint transition-transform duration-700 ease-(--ease-out-expo) group-hover:scale-x-100" />
               <h3 data-fill className="font-display text-[clamp(1.75rem,3.3vw,2.9rem)] leading-[1.02] font-semibold tracking-[-0.035em]">
                 {it.title}
               </h3>
-              <p className="max-w-md self-end text-[17px] leading-relaxed text-ink-2">{it.body}</p>
+              <p className="max-w-md self-end text-[17px] leading-relaxed text-ink-2 transition-transform duration-500 ease-(--ease-out-expo) group-hover:-translate-y-1">{it.body}</p>
             </li>
           ))}
         </ul>

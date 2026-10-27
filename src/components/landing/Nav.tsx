@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { clsx } from "clsx";
 import { Logo } from "../brand/Logo";
+import { ThemeToggle } from "../fx/ThemeToggle";
 
 const links = [
   { href: "#como-funciona", label: "Cómo funciona" },
@@ -17,12 +18,15 @@ export function Nav() {
   const [hidden, setHidden] = useState(false);
   const [open, setOpen] = useState(false);
   const last = useRef(0);
+  const progress = useRef<HTMLSpanElement>(null);
 
   useEffect(() => {
     const onScroll = () => {
       const y = window.scrollY;
       setSolid(y > 24);
       setHidden(y > 400 && y > last.current && !open);
+      const max = document.documentElement.scrollHeight - window.innerHeight;
+      if (progress.current) progress.current.style.transform = `scaleX(${max > 0 ? y / max : 0})`;
       last.current = y;
     };
     onScroll();
@@ -37,6 +41,11 @@ export function Nav() {
         hidden && "-translate-y-full",
       )}
     >
+      <span
+        ref={progress}
+        aria-hidden
+        className="pointer-events-none fixed inset-x-0 top-0 h-[3px] origin-left scale-x-0 bg-gradient-to-r from-cobalt via-mint to-cobalt"
+      />
       <nav
         aria-label="Principal"
         className={clsx(
@@ -50,13 +59,15 @@ export function Nav() {
         <ul className="hidden items-center gap-1 lg:flex">
           {links.map((l) => (
             <li key={l.href}>
-              <a href={l.href} className="rounded-full px-3.5 py-2 text-[15px] text-ink-2 transition-colors hover:bg-paper hover:text-ink">
+              <a href={l.href} className="group relative rounded-full px-3.5 py-2 text-[15px] text-ink-2 transition-colors hover:text-ink">
                 {l.label}
+                <span className="absolute inset-x-3.5 bottom-1 h-px origin-left scale-x-0 bg-cobalt transition-transform duration-500 ease-(--ease-out-expo) group-hover:scale-x-100" />
               </a>
             </li>
           ))}
         </ul>
         <div className="flex items-center gap-2">
+          <ThemeToggle />
           <Link href="/login" className="hidden rounded-full px-3.5 py-2 text-[15px] text-ink-2 hover:text-ink sm:inline-block">
             Iniciar sesión
           </Link>

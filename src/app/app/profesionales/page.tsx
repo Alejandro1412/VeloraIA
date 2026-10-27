@@ -5,6 +5,28 @@ import { PageHeader, PageSkeleton } from "@/components/app/ui";
 import { StaffEditor } from "@/components/app/StaffEditor";
 import { ClosuresEditor } from "@/components/app/ClosuresEditor";
 
+const HELP = {
+  "id": "profesionales",
+  "steps": [
+    {
+      "title": "Agrega a tu equipo",
+      "body": "Cada profesional tiene su propia agenda y color."
+    },
+    {
+      "title": "Qué hace cada uno",
+      "body": "Elige sus servicios y sus días libres."
+    },
+    {
+      "title": "Días cerrados",
+      "body": "Bloquea festivos o vacaciones, para todos o para una persona."
+    },
+    {
+      "title": "Lo piden por nombre",
+      "body": "Si el cliente dice “con Ana”, se agenda con ella."
+    }
+  ]
+};
+
 export default function StaffPage() {
   return (
     <Suspense fallback={<PageSkeleton />}>
@@ -18,7 +40,7 @@ async function StaffContent() {
   const [staff, services, closures] = await Promise.all([listStaff(), listServices(), listClosures()]);
   return (
     <>
-      <PageHeader
+      <PageHeader help={HELP}
         title="Profesionales"
         description="Quién atiende y qué servicios hace cada uno. Sofía asigna a alguien libre, o a quien el cliente pida por su nombre."
       />

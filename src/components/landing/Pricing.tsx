@@ -64,8 +64,8 @@ export function Pricing() {
             <article
               key={p.name}
               className={clsx(
-                "flex flex-col rounded-[28px] p-8 sm:p-9",
-                "featured" in p && p.featured ? "bg-ink text-white lg:-my-4 lg:py-13" : "border border-line lg:rounded-none lg:border-0",
+                "spotlight flex flex-col rounded-[28px] p-8 sm:p-9",
+                "featured" in p && p.featured ? "bg-night text-white lg:-my-4 lg:py-13" : "border border-line lg:rounded-none lg:border-0",
                 i === 0 && "lg:border-r lg:border-line",
                 i === 2 && "lg:border-l lg:border-line",
               )}

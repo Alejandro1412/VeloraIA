@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRef } from "react";
 import { gsap, prefersReducedMotion, SplitText, useGSAP } from "../motion/gsap";
+import { Magnetic } from "../fx/Magnetic";
 
 const thread = [
   { who: "in", text: "Hola, ¿tienen cita para limpieza mañana? 🙏", time: "10:47 p. m." },
@@ -83,12 +84,16 @@ export function Hero() {
             las confirma un día antes y las mueve cuando el cliente no puede.
           </p>
           <div data-reveal className="invisible mt-9 flex flex-wrap items-center gap-3">
-            <a href="#demo" className="btn-cobalt px-6 py-3.5 text-base">
+            <Magnetic>
+              <a href="#demo" className="btn-cobalt px-6 py-3.5 text-base">
               Hablar con Sofía ahora
             </a>
-            <Link href="/registro" className="btn-ghost px-6 py-3.5 text-base">
+            </Magnetic>
+            <Magnetic>
+              <Link href="/registro" className="btn-ghost px-6 py-3.5 text-base">
               Crear mi cuenta
             </Link>
+            </Magnetic>
           </div>
           <p data-reveal className="invisible mt-8 max-w-md text-[15px] text-muted">
             Hecho para odontologías, centros de estética, veterinarias, fisioterapia, barberías y talleres en Colombia.
@@ -102,7 +107,7 @@ export function Hero() {
           >
             <div className="overflow-hidden rounded-[1.9rem] bg-porcelain">
               <div className="flex items-center gap-3 border-b border-line-soft bg-paper px-5 py-4">
-                <div className="grid size-10 place-items-center rounded-full bg-ink font-display text-sm font-semibold text-white">S</div>
+                <div className="grid size-10 place-items-center rounded-full bg-night font-display text-sm font-semibold text-white">S</div>
                 <div className="min-w-0">
                   <p className="text-[15px] font-semibold">Sofía · Clínica Sonríe</p>
                   <p className="text-xs text-mint">en línea</p>
@@ -116,7 +121,7 @@ export function Hero() {
                     className={
                       "invisible max-w-[82%] rounded-2xl px-3.5 py-2.5 text-[14.5px] leading-snug whitespace-pre-line " +
                       (m.who === "in"
-                        ? "self-end rounded-br-md bg-ink text-white"
+                        ? "self-end rounded-br-md bg-night text-white"
                         : "self-start rounded-bl-md border border-line-soft bg-paper text-ink")
                     }
                   >

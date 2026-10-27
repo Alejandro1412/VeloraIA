@@ -30,7 +30,7 @@ export function Footer() {
   );
 
   return (
-    <footer ref={root} className="overflow-hidden bg-ink text-white">
+    <footer ref={root} className="overflow-hidden bg-night text-white">
       <div className="mx-auto max-w-[1240px] px-5 pt-24 sm:pt-32">
         <div className="flex flex-col justify-between gap-10 lg:flex-row lg:items-end">
           <h2 className="max-w-2xl font-display text-[clamp(2.4rem,5vw,4.4rem)] leading-[0.98] font-semibold tracking-[-0.036em]">

@@ -4,6 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { clsx } from "clsx";
+import { motion } from "motion/react";
+import { ThemeToggle } from "../fx/ThemeToggle";
 
 interface Item {
   href: string;
@@ -17,6 +19,7 @@ const items: Item[] = [
   { href: "/app", label: "Resumen", icon: "M3 12h4l3-8 4 16 3-8h4", primary: true },
   { href: "/app/agenda", label: "Agenda", icon: "M4 6h16v14H4zM4 10h16M9 3v4m6-4v4", primary: true },
   { href: "/app/conversaciones", label: "Conversaciones", icon: "M4 5h16v11H8l-4 4z", primary: true },
+  { href: "/app/probar", label: "Probar recepcionista", icon: "M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15.5l-1.9-4.6L5.5 9l4.6-1.4zM19 15l.9 2.1L22 18l-2.1.9L19 21l-.9-2.1L16 18l2.1-.9z" },
   { href: "/app/clientes", label: "Clientes", icon: "M16 19v-1a4 4 0 00-4-4H7a4 4 0 00-4 4v1M9.5 10a3 3 0 100-6 3 3 0 000 6zM21 19v-1a4 4 0 00-3-3.9M15 4.1a3 3 0 010 5.8", primary: true },
   { href: "/app/servicios", label: "Servicios", icon: "M5 7h14M5 12h14M5 17h9", ownerOnly: true },
   { href: "/app/profesionales", label: "Profesionales", icon: "M12 12a4 4 0 100-8 4 4 0 000 8zM4 21a8 8 0 0116 0", ownerOnly: true },
@@ -45,18 +48,25 @@ export function Sidebar({ role = "owner", unread = 0 }: { role?: "owner" | "staf
   return (
     <nav aria-label="Panel" className="contents lg:mt-8 lg:block">
       {/* desktop */}
-      <ul className="hidden space-y-1 lg:block">
+      <ul className="relative isolate hidden space-y-1 lg:block">
         {visible.map((it) => (
           <li key={it.href}>
             <Link
               href={it.href}
               aria-current={active(it.href) ? "page" : undefined}
               className={clsx(
-                "flex items-center gap-3 rounded-xl px-3 py-2.5 text-[15px] transition-colors",
-                active(it.href) ? "bg-ink text-white" : "text-ink-2 hover:bg-porcelain hover:text-ink",
+                "group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-[15px] transition-colors duration-300",
+                active(it.href) ? "text-white" : "text-ink-2 hover:bg-porcelain hover:text-ink",
               )}
             >
-              <Icon d={it.icon} className="size-[18px]" />
+              {active(it.href) && (
+                <motion.span
+                  layoutId="nav-pill"
+                  className="absolute inset-0 -z-10 rounded-xl bg-night shadow-[0_8px_24px_-12px_var(--color-night)]"
+                  transition={{ type: "spring", stiffness: 420, damping: 36 }}
+                />
+              )}
+              <Icon d={it.icon} className="size-[18px] transition-transform duration-300 group-hover:scale-110" />
               {it.label}
             </Link>
           </li>
@@ -66,14 +76,21 @@ export function Sidebar({ role = "owner", unread = 0 }: { role?: "owner" | "staf
             href="/app/notificaciones"
             aria-current={active("/app/notificaciones") ? "page" : undefined}
             className={clsx(
-              "flex items-center gap-3 rounded-xl px-3 py-2.5 text-[15px] transition-colors",
-              active("/app/notificaciones") ? "bg-ink text-white" : "text-ink-2 hover:bg-porcelain hover:text-ink",
+              "group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-[15px] transition-colors duration-300",
+              active("/app/notificaciones") ? "text-white" : "text-ink-2 hover:bg-porcelain hover:text-ink",
             )}
           >
+            {active("/app/notificaciones") && (
+              <motion.span
+                layoutId="nav-pill"
+                className="absolute inset-0 -z-10 rounded-xl bg-night shadow-[0_8px_24px_-12px_var(--color-night)]"
+                transition={{ type: "spring", stiffness: 420, damping: 36 }}
+              />
+            )}
             <Icon d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 01-3.4 0" className="size-[18px]" />
             Avisos
             {unread > 0 && (
-              <span className="tabular ml-auto rounded-full bg-cobalt px-2 py-0.5 text-xs font-semibold text-white" aria-label={`${unread} sin leer`}>
+              <span className="tabular ml-auto animate-[pop_500ms_var(--ease-out-expo)_both] rounded-full bg-cobalt px-2 py-0.5 text-xs font-semibold text-white" aria-label={`${unread} sin leer`}>
                 {unread > 99 ? "99+" : unread}
               </span>
             )}
@@ -81,9 +98,11 @@ export function Sidebar({ role = "owner", unread = 0 }: { role?: "owner" | "staf
         </li>
       </ul>
 
-      {/* mobile: bell in the top bar */}
-      <Link href="/app/notificaciones" className="relative ml-auto grid size-10 place-items-center rounded-full text-ink-2 lg:hidden" aria-label={`Avisos${unread ? `, ${unread} sin leer` : ""}`}>
+      {/* mobile: theme + bell in the top bar */}
+      <ThemeToggle className="ml-auto lg:hidden" />
+      <Link href="/app/notificaciones" className="relative grid size-10 place-items-center rounded-full text-ink-2 lg:hidden" aria-label={`Avisos${unread ? `, ${unread} sin leer` : ""}`}>
         <Icon d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 01-3.4 0" className="size-5" />
+        {unread > 0 && <span className="absolute top-1.5 right-1.5 size-2.5 animate-ping rounded-full bg-cobalt/60" />}
         {unread > 0 && <span className="absolute top-1.5 right-1.5 size-2.5 rounded-full bg-cobalt" />}
       </Link>
 
@@ -94,8 +113,9 @@ export function Sidebar({ role = "owner", unread = 0 }: { role?: "owner" | "staf
             <Link
               href={it.href}
               aria-current={active(it.href) ? "page" : undefined}
-              className={clsx("flex flex-col items-center gap-1 rounded-xl py-1.5 text-[11px]", active(it.href) ? "text-cobalt" : "text-muted")}
+              className={clsx("relative flex flex-col items-center gap-1 rounded-xl py-1.5 text-[11px] transition-colors", active(it.href) ? "text-cobalt" : "text-muted")}
             >
+              {active(it.href) && <motion.span layoutId="tab-dot" className="absolute -top-1.5 h-1 w-8 rounded-full bg-cobalt" />}
               <Icon d={it.icon} className="size-5" />
               {it.label}
             </Link>
@@ -114,7 +134,7 @@ export function Sidebar({ role = "owner", unread = 0 }: { role?: "owner" | "staf
         </li>
       </ul>
       {more && (
-        <div className="fixed inset-x-3 bottom-20 z-40 rounded-3xl border border-line bg-paper p-2 shadow-2xl lg:hidden">
+        <div className="fixed inset-x-3 bottom-20 z-40 animate-[rise_400ms_var(--ease-out-expo)_both] rounded-3xl border border-line bg-paper p-2 shadow-2xl lg:hidden">
           {secondary.map((it) => (
             <Link key={it.href} href={it.href} onClick={() => setMore(false)} className="flex items-center gap-3 rounded-2xl px-4 py-3 text-[15px] hover:bg-porcelain">
               <Icon d={it.icon} className="size-5 text-ink-2" />

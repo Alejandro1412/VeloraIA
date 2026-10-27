@@ -13,6 +13,28 @@ import { CopyField } from "@/components/app/CopyField";
 import { WompiForm } from "@/components/app/WompiForm";
 import { createCalendarTokenAction } from "../actions";
 
+const HELP = {
+  "id": "ajustes",
+  "steps": [
+    {
+      "title": "Tu negocio",
+      "body": "Nombre, teléfono, dirección y horario de atención."
+    },
+    {
+      "title": "Tu recepcionista",
+      "body": "Su nombre, saludo e instrucciones especiales."
+    },
+    {
+      "title": "Compártela",
+      "body": "Enlace de reservas, botón para tu web y calendario."
+    },
+    {
+      "title": "Cobros",
+      "body": "Conecta Wompi para cobrar anticipos."
+    }
+  ]
+};
+
 export default function SettingsPage({ searchParams }: PageProps<"/app/ajustes">) {
   return (
     <Suspense fallback={<PageSkeleton />}>
@@ -46,7 +68,7 @@ async function Settings({ searchParams }: { searchParams: PageProps<"/app/ajuste
 
   return (
     <>
-      <PageHeader title="Ajustes" description="Tu negocio, tu recepcionista y cómo te encuentran tus clientes." />
+      <PageHeader help={HELP} title="Ajustes" description="Tu negocio, tu recepcionista y cómo te encuentran tus clientes." />
       {welcome && (
         <div className="mx-5 mt-6 rounded-2xl bg-cobalt-soft px-5 py-4 lg:mx-10">
           <p className="font-medium">¡Tu cuenta está lista, {session.name.split(" ")[0]}!</p>
@@ -77,7 +99,7 @@ async function Settings({ searchParams }: { searchParams: PageProps<"/app/ajuste
         </div>
 
         <aside className="space-y-6">
-          <section aria-labelledby="link-title" className="rounded-2xl border border-line bg-paper p-5">
+          <section aria-labelledby="link-title" className="spotlight rounded-2xl border border-line bg-paper p-5">
             <h2 id="link-title" className="font-display text-xl font-semibold tracking-tight">
               Tu enlace de reservas
             </h2>
@@ -85,12 +107,12 @@ async function Settings({ searchParams }: { searchParams: PageProps<"/app/ajuste
               Compártelo en tu Instagram, en Google Maps o por WhatsApp. Tus clientes agendan ahí con {settings.assistantName}.
             </p>
             <CopyField value={bookingUrl} label="Enlace de reservas" />
-            <a href={bookingUrl} target="_blank" rel="noreferrer" className="mt-3 inline-block text-sm font-medium text-cobalt hover:underline">
-              Abrir mi página de reservas
-            </a>
+            <Link href={`/reservar/${session.businessId}?desde=panel`} className="mt-3 inline-block text-sm font-medium text-cobalt hover:underline">
+              Ver mi página de reservas
+            </Link>
           </section>
 
-          <section aria-labelledby="widget-title" className="rounded-2xl border border-line bg-paper p-5">
+          <section aria-labelledby="widget-title" className="spotlight rounded-2xl border border-line bg-paper p-5">
             <h2 id="widget-title" className="font-display text-xl font-semibold tracking-tight">
               Botón para tu página web
             </h2>
@@ -98,7 +120,7 @@ async function Settings({ searchParams }: { searchParams: PageProps<"/app/ajuste
             <CopyField value={widgetCode} label="Código del botón" />
           </section>
 
-          <section aria-labelledby="cal-title" className="rounded-2xl border border-line bg-paper p-5">
+          <section aria-labelledby="cal-title" className="spotlight rounded-2xl border border-line bg-paper p-5">
             <h2 id="cal-title" className="font-display text-xl font-semibold tracking-tight">
               Ver tus citas en Google Calendar
             </h2>
@@ -119,7 +141,7 @@ async function Settings({ searchParams }: { searchParams: PageProps<"/app/ajuste
             )}
           </section>
 
-          <section aria-labelledby="pay-title" className="rounded-2xl border border-line bg-paper p-5">
+          <section aria-labelledby="pay-title" className="spotlight rounded-2xl border border-line bg-paper p-5">
             <h2 id="pay-title" className="font-display text-xl font-semibold tracking-tight">
               Anticipos con Wompi
             </h2>
@@ -143,7 +165,7 @@ async function Settings({ searchParams }: { searchParams: PageProps<"/app/ajuste
                 <li key={i.key} className="px-5 py-4">
                   <div className="flex items-center justify-between gap-3">
                     <p className="font-medium">{i.name}</p>
-                    <span className={clsx("rounded-full px-2.5 py-0.5 text-xs font-medium", i.connected ? "bg-mint-soft text-[#0b7a5b]" : "bg-line-soft text-ink-2")}>
+                    <span className={clsx("rounded-full px-2.5 py-0.5 text-xs font-medium", i.connected ? "bg-mint-soft text-mint-ink" : "bg-line-soft text-ink-2")}>
                       {i.connected ? "Activo" : "Sin conectar"}
                     </span>
                   </div>

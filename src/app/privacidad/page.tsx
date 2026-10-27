@@ -1,16 +1,24 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Logo } from "@/components/brand/Logo";
+import { BackButton } from "@/components/app/PageChrome";
+import { ThemeToggle } from "@/components/fx/ThemeToggle";
 
 export const metadata: Metadata = { title: "Política de privacidad" };
 
 export default function Privacy() {
   return (
     <main className="mx-auto max-w-2xl px-5 py-16">
-      <Link href="/" aria-label="Volver al inicio">
-        <Logo />
-      </Link>
-      <h1 className="mt-12 font-display text-4xl font-semibold tracking-tight">Política de tratamiento de datos</h1>
+      <div className="flex items-center justify-between">
+        <Link href="/" aria-label="Volver al inicio">
+          <Logo />
+        </Link>
+        <ThemeToggle />
+      </div>
+      <div className="mt-10">
+        <BackButton fallback="/" />
+      </div>
+      <h1 className="mt-6 font-display text-4xl font-semibold tracking-tight">Política de tratamiento de datos</h1>
       <div className="mt-8 space-y-5 text-[17px] leading-relaxed text-ink-2">
         <p>
           Velora es un servicio de IONEX. Tratamos los datos personales de los clientes de nuestros comercios aliados

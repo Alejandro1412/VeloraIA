@@ -25,7 +25,7 @@ export function ServicesEditor({ services }: { services: Service[] }) {
                   <p className="truncate text-sm text-muted">{s.description || "Sin descripción"}</p>
                   {(!!s.depositAmount || !!s.bufferMinutes || !!s.days?.length) && (
                     <p className="mt-1 flex flex-wrap gap-1.5 text-xs">
-                      {!!s.depositAmount && <span className="rounded-full bg-mint-soft px-2 py-0.5 text-[#0b7a5b]">Anticipo {formatMoney(s.depositAmount)}</span>}
+                      {!!s.depositAmount && <span className="rounded-full bg-mint-soft px-2 py-0.5 text-mint-ink">Anticipo {formatMoney(s.depositAmount)}</span>}
                       {!!s.bufferMinutes && <span className="rounded-full bg-line-soft px-2 py-0.5 text-ink-2">+{s.bufferMinutes} min descanso</span>}
                       {!!s.days?.length && (
                         <span className="rounded-full bg-line-soft px-2 py-0.5 text-ink-2">{DAYS.filter(([d]) => s.days!.includes(d)).map(([, l]) => l).join(" · ")}</span>
@@ -133,7 +133,7 @@ function ServiceForm({ service, onDone }: { service?: Service; onDone: () => voi
                 defaultChecked={!service?.days?.length || service.days.includes(value)}
                 className="peer sr-only"
               />
-              <span className="inline-grid h-9 min-w-11 place-items-center rounded-full border border-line px-3 text-sm text-ink-2 peer-checked:border-ink peer-checked:bg-ink peer-checked:text-white peer-focus-visible:ring-2 peer-focus-visible:ring-cobalt">
+              <span className="inline-grid h-9 min-w-11 place-items-center rounded-full border border-line px-3 text-sm text-ink-2 peer-checked:border-ink peer-checked:bg-night peer-checked:text-white peer-focus-visible:ring-2 peer-focus-visible:ring-cobalt">
                 {label}
               </span>
             </label>

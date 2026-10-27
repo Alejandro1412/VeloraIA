@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from "react"
 import { AnimatePresence, motion } from "motion/react";
 import { clsx } from "clsx";
 import { RichText } from "./RichText";
+import { confetti } from "../fx/confetti";
 
 interface ChatMessage {
   id: string;
@@ -12,7 +13,7 @@ interface ChatMessage {
 }
 
 
-const SUGGESTIONS = [
+const DEFAULT_SUGGESTIONS = [
   "Quiero una limpieza mañana a las 10",
   "¿Cuánto cuesta el blanqueamiento?",
   "Me duele una muela, ¿tienen hoy?",
@@ -42,11 +43,13 @@ export function ChatWidget({
   assistantName = "Sofía",
   businessId = "demo",
   bookedNote = "Esta cita ya aparece en la agenda del panel de demostración.",
+  suggestions = DEFAULT_SUGGESTIONS,
 }: {
   greeting: string;
   assistantName?: string;
   businessId?: string;
   bookedNote?: string;
+  suggestions?: string[];
 }) {
   const storageKey = `velora:conversation:${businessId}`;
   const [conversationId, setConversationId] = useState<string | null>(null);
@@ -129,6 +132,7 @@ export function ChatWidget({
             { id: `a-${Date.now()}`, role: "assistant", text: "Tu mensaje le llegó al equipo. Te responderán por aquí en breve." },
           ]);
         if (data.event) setEvent(data.event);
+        if (data.event === "booked") window.setTimeout(() => confetti(scroller.current), 250);
       } catch (err) {
         setError((err as Error).message || "No pudimos enviar tu mensaje.");
       } finally {
@@ -156,7 +160,7 @@ export function ChatWidget({
     <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-[28px] border border-line bg-paper shadow-[0_40px_90px_-50px_rgba(14,27,61,.55)]">
       <div className="flex items-center justify-between gap-3 border-b border-line-soft px-5 py-4">
         <div className="flex items-center gap-3">
-          <div className="relative grid size-10 place-items-center rounded-full bg-ink font-display text-sm font-semibold text-white">
+          <div className="relative grid size-10 place-items-center rounded-full bg-night font-display text-sm font-semibold text-white">
             {assistantName[0]}
             <span className="absolute -right-0.5 -bottom-0.5 size-3 rounded-full border-2 border-paper bg-mint" />
           </div>
@@ -165,7 +169,7 @@ export function ChatWidget({
             <p className="text-xs text-muted">{pending ? "escribiendo…" : "Responde al instante"}</p>
           </div>
         </div>
-        <button type="button" onClick={reset} className="rounded-full px-3 py-1.5 text-sm text-muted hover:bg-porcelain hover:text-ink">
+        <button type="button" onClick={reset} data-tip="Borra este chat y empieza de cero" className="rounded-full px-3 py-1.5 text-sm text-muted transition-colors hover:bg-porcelain hover:text-ink">
           Nueva conversación
         </button>
       </div>
@@ -182,13 +186,13 @@ export function ChatWidget({
               className={clsx(
                 "max-w-[85%] rounded-2xl px-3.5 py-2.5 text-[15px] leading-snug whitespace-pre-line",
                 m.role === "customer"
-                  ? "self-end rounded-br-md bg-ink text-white"
+                  ? "self-end rounded-br-md bg-night text-white"
                   : m.role === "staff"
                     ? "self-start rounded-bl-md border border-amber/40 bg-amber-soft text-ink"
                     : "self-start rounded-bl-md border border-line-soft bg-paper text-ink",
               )}
             >
-              {m.role === "staff" && <span className="mb-1 block text-xs font-medium text-ink-2">Equipo de la clínica</span>}
+              {m.role === "staff" && <span className="mb-1 block text-xs font-medium text-ink-2">Equipo</span>}
               <RichText text={m.text} />
             </motion.div>
           ))}
@@ -226,12 +230,12 @@ export function ChatWidget({
 
       {messages.length <= 1 && (
         <div className="flex flex-wrap gap-2 border-t border-line-soft px-4 pt-3">
-          {SUGGESTIONS.map((s) => (
+          {suggestions.map((s) => (
             <button
               key={s}
               type="button"
               onClick={() => void send(s)}
-              className="rounded-full border border-line px-3 py-1.5 text-[13px] text-ink-2 transition-colors hover:border-cobalt hover:text-cobalt"
+              className="rounded-full border border-line px-3 py-1.5 text-[13px] text-ink-2 transition-all duration-300 hover:-translate-y-0.5 hover:border-cobalt hover:text-cobalt"
             >
               {s}
             </button>

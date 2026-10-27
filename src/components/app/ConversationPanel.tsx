@@ -55,7 +55,7 @@ export function ConversationPanel({ conversation: c, assistantName, messages, wh
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <span className={clsx("text-sm", c.humanTakeover ? "text-[#8a5a12]" : "text-mint")}>
+          <span className={clsx("text-sm", c.humanTakeover ? "text-amber-ink" : "text-mint")}>
             {c.humanTakeover ? "Respondes tú" : `${assistantName} responde`}
           </span>
           <button
@@ -76,7 +76,7 @@ export function ConversationPanel({ conversation: c, assistantName, messages, wh
               className={clsx(
                 "max-w-[78%] rounded-2xl px-3.5 py-2.5 text-[15px] leading-snug whitespace-pre-line",
                 m.role === "customer" && "rounded-bl-md border border-line-soft bg-paper",
-                m.role === "assistant" && "rounded-br-md bg-ink text-white",
+                m.role === "assistant" && "rounded-br-md bg-night text-white",
                 m.role === "staff" && "rounded-br-md bg-amber-soft text-ink",
               )}
             >
@@ -94,17 +94,17 @@ export function ConversationPanel({ conversation: c, assistantName, messages, wh
           {blocked ? (
             <>
               Este chat llegó por WhatsApp y tu número aún no está conectado, así que no puedes responderle desde aquí. Para hablar tú con {assistantName},{" "}
-              <a href={testUrl} target="_blank" rel="noreferrer" className="font-medium text-cobalt hover:underline">
+              <Link href={testUrl} className="font-medium text-cobalt hover:underline">
                 abre tu chat de prueba
-              </a>
+              </Link>
               .
             </>
           ) : (
             <>
               Esta caja es para que <strong>tu equipo</strong> le responda al cliente{demo && c.channel === "whatsapp" ? " (en la demostración no se envía de verdad)" : ""}. Para conversar tú con {assistantName},{" "}
-              <a href={testUrl} target="_blank" rel="noreferrer" className="font-medium text-cobalt hover:underline">
+              <Link href={testUrl} className="font-medium text-cobalt hover:underline">
                 abre tu chat de prueba
-              </a>
+              </Link>
               .
             </>
           )}

@@ -38,8 +38,8 @@ export function Faq() {
               <summary className="flex cursor-pointer list-none items-center justify-between gap-6 py-6 text-left text-lg font-medium [&::-webkit-details-marker]:hidden">
                 {f.q}
                 <span className="relative size-4 shrink-0" aria-hidden>
-                  <span className="absolute top-1/2 left-0 h-0.5 w-4 -translate-y-1/2 bg-ink" />
-                  <span className="absolute top-1/2 left-0 h-0.5 w-4 -translate-y-1/2 rotate-90 bg-ink transition-transform duration-300 group-open:rotate-0" />
+                  <span className="absolute top-1/2 left-0 h-0.5 w-4 -translate-y-1/2 bg-night" />
+                  <span className="absolute top-1/2 left-0 h-0.5 w-4 -translate-y-1/2 rotate-90 bg-night transition-transform duration-300 group-open:rotate-0" />
                 </span>
               </summary>
               <p className="max-w-2xl pb-6 text-[16.5px] leading-relaxed text-ink-2">{f.a}</p>

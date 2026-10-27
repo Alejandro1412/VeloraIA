@@ -8,6 +8,28 @@ import { Empty, PageHeader, PageSkeleton } from "@/components/app/ui";
 import { AutoRefresh } from "@/components/app/AutoRefresh";
 import { markNotificationsReadAction } from "../actions";
 
+const HELP = {
+  "id": "avisos",
+  "steps": [
+    {
+      "title": "Lo importante primero",
+      "body": "Citas nuevas, cambios, cancelaciones y pedidos de ayuda."
+    },
+    {
+      "title": "Toca un aviso",
+      "body": "Te lleva directo a la cita o al chat."
+    },
+    {
+      "title": "También a tu correo",
+      "body": "Configura en Ajustes dónde quieres recibirlos."
+    },
+    {
+      "title": "Marca como leído",
+      "body": "Para dejar la lista limpia."
+    }
+  ]
+};
+
 export default function NotificationsPage() {
   return (
     <Suspense fallback={<PageSkeleton />}>
@@ -20,7 +42,7 @@ const DOT: Record<string, string> = {
   booked: "bg-cobalt",
   rescheduled: "bg-amber",
   cancelled: "bg-rose",
-  handoff: "bg-ink",
+  handoff: "bg-night",
   deposit_paid: "bg-mint",
   waitlist: "bg-mint",
 };
@@ -38,7 +60,7 @@ async function Notifications() {
   return (
     <>
       <AutoRefresh seconds={15} />
-      <PageHeader
+      <PageHeader help={HELP}
         title="Avisos"
         description="Citas nuevas, cambios y clientes que piden hablar con tu equipo."
         actions={

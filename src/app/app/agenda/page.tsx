@@ -7,6 +7,28 @@ import { addDays, formatDateEs, MONTHS_ES, toMinutes, weekdayOf } from "@/lib/do
 import { PageHeader, PageSkeleton } from "@/components/app/ui";
 import { AgendaBoard, type BoardAppointment } from "@/components/app/AgendaBoard";
 
+const HELP = {
+  "id": "agenda",
+  "steps": [
+    {
+      "title": "Navega por semanas",
+      "body": "Usa Anterior, Hoy y Siguiente para moverte."
+    },
+    {
+      "title": "Toca una cita",
+      "body": "Confírmala, márcala atendida, muévela o cámbiale el profesional."
+    },
+    {
+      "title": "Filtra por persona",
+      "body": "Con profesionales, toca un nombre para ver solo su agenda."
+    },
+    {
+      "title": "Agenda a mano",
+      "body": "“Nueva cita” para quien llama o llega al mostrador."
+    }
+  ]
+};
+
 export default function AgendaPage({ searchParams }: PageProps<"/app/agenda">) {
   return (
     <Suspense fallback={<PageSkeleton />}>
@@ -58,7 +80,7 @@ async function Agenda({ searchParams }: { searchParams: PageProps<"/app/agenda">
 
   return (
     <>
-      <PageHeader
+      <PageHeader help={HELP}
         title="Agenda"
         description={`Semana del ${range} · ${weekTotal} citas activas`}
         actions={

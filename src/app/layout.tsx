@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
+import { Effects } from "@/components/fx/Effects";
+import { themeScript } from "@/components/fx/theme";
 
 // Self-hosted variable fonts: no third-party request at build or runtime.
 const bricolage = localFont({
@@ -41,15 +43,24 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#edf1f6",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#edf1f6" },
+    { media: "(prefers-color-scheme: dark)", color: "#0a1022" },
+  ],
   width: "device-width",
   initialScale: 1,
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="es" className={`${bricolage.variable} ${geist.variable} antialiased`}>
-      <body className="min-h-dvh">{children}</body>
+    <html lang="es" suppressHydrationWarning className={`${bricolage.variable} ${geist.variable} antialiased`}>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+      </head>
+      <body className="min-h-dvh">
+        {children}
+        <Effects />
+      </body>
     </html>
   );
 }

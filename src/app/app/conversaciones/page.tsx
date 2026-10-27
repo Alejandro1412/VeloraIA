@@ -10,6 +10,28 @@ import { Empty, PageHeader, PageSkeleton } from "@/components/app/ui";
 import { ConversationPanel } from "@/components/app/ConversationPanel";
 import { AutoRefresh } from "@/components/app/AutoRefresh";
 
+const HELP = {
+  "id": "conversaciones",
+  "steps": [
+    {
+      "title": "Todo en un lugar",
+      "body": "Cada chat con lo que escribió el cliente y lo que respondió tu recepcionista."
+    },
+    {
+      "title": "Toma el control",
+      "body": "Si respondes tú, la recepcionista se calla en ese chat hasta que la devuelvas."
+    },
+    {
+      "title": "Chatea con ella",
+      "body": "“Chatear con …” abre una prueba aquí mismo, como si fueras cliente."
+    },
+    {
+      "title": "Se actualiza solo",
+      "body": "Los mensajes nuevos llegan sin recargar la página."
+    }
+  ]
+};
+
 export default function ConversationsPage({ searchParams }: PageProps<"/app/conversaciones">) {
   return (
     <Suspense fallback={<PageSkeleton />}>
@@ -35,13 +57,13 @@ async function Conversations({ searchParams }: { searchParams: PageProps<"/app/c
   return (
     <>
       <AutoRefresh seconds={8} />
-      <PageHeader
+      <PageHeader help={HELP}
         title="Conversaciones"
         description={`Todo lo que tus clientes escriben, y lo que ${settings.assistantName} responde.`}
         actions={
-          <a href={`/reservar/${session.businessId}`} target="_blank" rel="noreferrer" className="btn-primary btn-sm">
+          <Link href="/app/probar" className="btn-primary btn-sm">
             Chatear con {settings.assistantName}
-          </a>
+          </Link>
         }
       />
       <div className="grid min-h-[calc(100dvh-140px)] lg:grid-cols-[360px_1fr]">
@@ -58,7 +80,7 @@ async function Conversations({ searchParams }: { searchParams: PageProps<"/app/c
                 aria-current={c.id === selected?.id ? "true" : undefined}
                 className={clsx("flex gap-3 px-5 py-4 transition-colors hover:bg-paper", c.id === selected?.id && "bg-paper")}
               >
-                <span className="grid size-10 shrink-0 place-items-center rounded-full bg-ink/90 text-sm font-semibold text-white">
+                <span className="grid size-10 shrink-0 place-items-center rounded-full bg-night/90 text-sm font-semibold text-white">
                   {(c.customerName || "W")[0].toUpperCase()}
                 </span>
                 <span className="min-w-0 flex-1">
@@ -68,7 +90,7 @@ async function Conversations({ searchParams }: { searchParams: PageProps<"/app/c
                   </span>
                   <span className="mt-0.5 flex items-center gap-2 text-xs text-muted">
                     {CHANNEL_LABEL[c.channel]}
-                    {c.humanTakeover && <span className="rounded-full bg-amber-soft px-1.5 py-px text-[#8a5a12]">Tu equipo responde</span>}
+                    {c.humanTakeover && <span className="rounded-full bg-amber-soft px-1.5 py-px text-amber-ink">Tu equipo responde</span>}
                   </span>
                   <span className="mt-1 block truncate text-sm text-ink-2">{c.lastMessage}</span>
                 </span>
@@ -93,7 +115,7 @@ async function Conversations({ searchParams }: { searchParams: PageProps<"/app/c
               assistantName={settings.assistantName}
               whatsappReady={session.demo || (whatsappConfigured() && !!(settings.whatsappPhoneNumberId || process.env.WHATSAPP_PHONE_NUMBER_ID))}
               demo={session.demo}
-              testUrl={`/reservar/${session.businessId}`}
+              testUrl="/app/probar"
               messages={messages.map((m) => ({ id: m.id, role: m.role, text: m.text, time: stamp(m.createdAt) }))}
             />
           ) : (

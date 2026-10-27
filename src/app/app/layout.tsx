@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { Logo } from "@/components/brand/Logo";
 import { Sidebar } from "@/components/app/Sidebar";
+import { ThemeToggle } from "@/components/fx/ThemeToggle";
 import { getSession } from "@/lib/auth";
 import { getBusiness } from "@/lib/accounts";
 import { subscriptionFor } from "@/lib/billing";
@@ -22,6 +23,7 @@ export default function AppLayout({ children }: LayoutProps<"/app">) {
           <Nav />
         </Suspense>
         <div className="hidden lg:mt-auto lg:block lg:pt-6">
+          <ThemeToggle label />
           <Suspense fallback={<div className="h-14" />}>
             <Account />
           </Suspense>
@@ -69,7 +71,7 @@ async function Banners() {
   if (!session) return null;
   if (session.demo) {
     return (
-      <div className="flex flex-wrap items-center justify-between gap-3 bg-ink px-5 py-2.5 text-sm text-white lg:px-10">
+      <div className="flex flex-wrap items-center justify-between gap-3 bg-night px-5 py-2.5 text-sm text-white lg:px-10">
         <p>Estás viendo una clínica de demostración. Los cambios los ven también otros visitantes.</p>
         <Link href="/registro" className="font-medium text-white underline underline-offset-4">
           Crear la cuenta de mi negocio

@@ -45,7 +45,7 @@ export function TeamManager({
           {members.length === 0 && <li className="px-5 py-4 text-sm text-muted">{demo ? "En la demostración no hay equipo." : "Solo tú por ahora."}</li>}
           {members.map((m) => (
             <li key={m.email} className="flex items-center gap-4 px-5 py-4">
-              <span className="grid size-10 shrink-0 place-items-center rounded-full bg-ink text-sm font-semibold text-white">{(m.name || m.email)[0].toUpperCase()}</span>
+              <span className="grid size-10 shrink-0 place-items-center rounded-full bg-night text-sm font-semibold text-white">{(m.name || m.email)[0].toUpperCase()}</span>
               <div className="min-w-0 flex-1">
                 <p className="truncate font-medium">
                   {m.name || m.email}

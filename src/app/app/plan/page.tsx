@@ -9,6 +9,28 @@ import { formatMoney } from "@/lib/domain/time";
 import { PageHeader, PageSkeleton } from "@/components/app/ui";
 import { startCheckoutAction } from "../actions";
 
+const HELP = {
+  "id": "plan",
+  "steps": [
+    {
+      "title": "Tu periodo",
+      "body": "Cuántos días te quedan de prueba o de tu mes pagado."
+    },
+    {
+      "title": "Tu consumo",
+      "body": "Conversaciones usadas este mes frente al límite del plan."
+    },
+    {
+      "title": "Paga en línea",
+      "body": "PSE, Nequi o tarjeta. Cada pago suma un mes."
+    },
+    {
+      "title": "Sin permanencia",
+      "body": "Cambia de plan cuando quieras."
+    }
+  ]
+};
+
 export default function PlanPage({ searchParams }: PageProps<"/app/plan">) {
   return (
     <Suspense fallback={<PageSkeleton />}>
@@ -42,7 +64,7 @@ async function Plan({ searchParams }: { searchParams: PageProps<"/app/plan">["se
 
   return (
     <>
-      <PageHeader title="Plan y pagos" description="Tu suscripción a Velora. Pagas mes a mes con PSE, Nequi o tarjeta, sin permanencia." />
+      <PageHeader help={HELP} title="Plan y pagos" description="Tu suscripción a Velora. Pagas mes a mes con PSE, Nequi o tarjeta, sin permanencia." />
       <div className="space-y-10 px-5 py-6 lg:px-10">
         {notice && (
           <p role="status" className="rounded-2xl bg-cobalt-soft px-5 py-4 text-[15px]">
@@ -51,19 +73,19 @@ async function Plan({ searchParams }: { searchParams: PageProps<"/app/plan">["se
         )}
 
         <section className="grid gap-4 sm:grid-cols-3">
-          <div className="rounded-2xl border border-line bg-paper p-5">
+          <div className="spotlight rounded-2xl border border-line bg-paper p-5">
             <p className="text-sm text-muted">Plan actual</p>
             <p className="mt-1 font-display text-2xl font-semibold">{sub.trial ? "Prueba gratis" : PLANS[sub.plan].name}</p>
             <p className="mt-1 text-sm text-ink-2">{sub.trial ? "Con todas las funciones de Profesional" : formatMoney(PLANS[sub.plan].price) + " al mes"}</p>
           </div>
-          <div className="rounded-2xl border border-line bg-paper p-5">
+          <div className="spotlight rounded-2xl border border-line bg-paper p-5">
             <p className="text-sm text-muted">{sub.daysLeft >= 0 ? "Activo hasta" : "Venció el"}</p>
             <p className="mt-1 font-display text-2xl font-semibold first-letter:uppercase">{until}</p>
             <p className={clsx("mt-1 text-sm", sub.daysLeft < 0 ? "text-rose" : "text-ink-2")}>
               {sub.daysLeft >= 0 ? `Quedan ${sub.daysLeft} días` : sub.serving ? "Estás en el periodo de gracia" : "Agenda en línea pausada"}
             </p>
           </div>
-          <div className="rounded-2xl border border-line bg-paper p-5">
+          <div className="spotlight rounded-2xl border border-line bg-paper p-5">
             <p className="text-sm text-muted">Conversaciones este mes</p>
             <p className="tabular mt-1 font-display text-2xl font-semibold">
               {used}
@@ -87,7 +109,7 @@ async function Plan({ searchParams }: { searchParams: PageProps<"/app/plan">["se
               const p = PLANS[id];
               const current = !sub.trial && sub.plan === id;
               return (
-                <form key={id} action={startCheckoutAction.bind(null, id)} className={clsx("flex flex-col rounded-[24px] p-6", id === "profesional" ? "bg-ink text-white" : "border border-line bg-paper")}>
+                <form key={id} action={startCheckoutAction.bind(null, id)} className={clsx("flex flex-col rounded-[24px] p-6", id === "profesional" ? "bg-night text-white" : "border border-line bg-paper")}>
                   <h3 className="font-display text-xl font-semibold">{p.name}</h3>
                   <p className="tabular mt-3 font-display text-3xl font-semibold tracking-tight">
                     {formatMoney(p.price)}

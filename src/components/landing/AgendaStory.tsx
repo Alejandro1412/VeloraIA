@@ -143,7 +143,7 @@ export function AgendaStory() {
   );
 
   return (
-    <section ref={root} id="como-funciona" aria-label="Así funciona Velora en una noche" className="relative bg-ink text-white">
+    <section ref={root} id="como-funciona" aria-label="Así funciona Velora en una noche" className="relative bg-night text-white">
       <div data-pin className="relative flex h-dvh items-center overflow-hidden py-6 lg:py-0">
         <div className="mx-auto grid w-full max-w-[1240px] gap-5 px-5 lg:grid-cols-[0.85fr_1.15fr] lg:items-center lg:gap-16">
           {/* Narrative */}

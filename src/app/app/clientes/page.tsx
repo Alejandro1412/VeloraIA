@@ -5,6 +5,28 @@ import { localParts } from "@/lib/domain/time";
 import { PageHeader, PageSkeleton } from "@/components/app/ui";
 import { CustomersTable, type CustomerRow } from "@/components/app/CustomersTable";
 
+const HELP = {
+  "id": "clientes",
+  "steps": [
+    {
+      "title": "Se crean solos",
+      "body": "Cada persona que agenda queda guardada con su historial."
+    },
+    {
+      "title": "Filtra rápido",
+      "body": "Con cita próxima o quienes han faltado."
+    },
+    {
+      "title": "Anota detalles",
+      "body": "Toca un cliente para ver sus citas y escribir notas."
+    },
+    {
+      "title": "Descarga",
+      "body": "Exporta todas las citas a Excel cuando quieras."
+    }
+  ]
+};
+
 export default function CustomersPage() {
   return (
     <Suspense fallback={<PageSkeleton />}>
@@ -58,7 +80,7 @@ async function Customers() {
 
   return (
     <>
-      <PageHeader
+      <PageHeader help={HELP}
         title="Clientes"
         description={`${rows.length} clientes. Historial, inasistencias y notas de cada uno.`}
         actions={

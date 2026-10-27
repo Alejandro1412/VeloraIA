@@ -65,7 +65,7 @@ export function CustomersTable({ rows, currency }: { rows: CustomerRow[]; curren
               type="button"
               aria-pressed={filter === k}
               onClick={() => setFilter(k)}
-              className={clsx("rounded-full px-3 py-1.5", filter === k ? "bg-ink text-white" : "text-ink-2 hover:bg-porcelain")}
+              className={clsx("rounded-full px-3 py-1.5", filter === k ? "bg-night text-white" : "text-ink-2 hover:bg-porcelain")}
             >
               {label}
             </button>
@@ -103,7 +103,7 @@ export function CustomersTable({ rows, currency }: { rows: CustomerRow[]; curren
                   </td>
                   <td className="tabular px-3 py-3">{r.visits}</td>
                   <td className="tabular px-3 py-3">
-                    {r.noShows > 0 ? <span className="rounded-full bg-amber-soft px-2 py-0.5 text-[#8a5a12]">{r.noShows}</span> : "0"}
+                    {r.noShows > 0 ? <span className="rounded-full bg-amber-soft px-2 py-0.5 text-amber-ink">{r.noShows}</span> : "0"}
                   </td>
                   <td className="px-3 py-3 text-ink-2">{r.lastVisit ? formatDateEs(r.lastVisit) : "—"}</td>
                   <td className="px-3 py-3 text-ink-2">{r.nextVisit ? formatDateEs(r.nextVisit) : "—"}</td>
@@ -128,7 +128,7 @@ function CustomerDrawer({ row, currency, onClose }: { row: CustomerRow; currency
 
   return (
     <>
-      <motion.div className="fixed inset-0 z-40 bg-ink/30" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} />
+      <motion.div className="fixed inset-0 z-40 bg-night/30" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} />
       <motion.aside
         role="dialog"
         aria-modal="true"

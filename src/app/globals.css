@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --color-ink: #0e1b3d;
   --color-ink-2: #2a3657;
@@ -16,6 +18,12 @@
   --color-rose-soft: #fde4e7;
   --color-amber: #e9a23b;
   --color-amber-soft: #fbf0dc;
+  /* Always-dark surfaces (primary buttons, active nav, dark sections). */
+  --color-night: #0e1b3d;
+  /* Readable text on the *-soft tints. */
+  --color-mint-ink: #0b7a5b;
+  --color-rose-ink: #b4233a;
+  --color-amber-ink: #8a5a12;
 
   --font-display: var(--font-bricolage), ui-sans-serif, system-ui, sans-serif;
   --font-sans: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
@@ -24,10 +32,61 @@
   --ease-in-out-quart: cubic-bezier(0.76, 0, 0.24, 1);
 }
 
+/* Dark theme: same tokens, new values. Utilities read the variables at runtime. */
+html.dark {
+  color-scheme: dark;
+  --color-ink: #e9eefb;
+  --color-ink-2: #c1cbe3;
+  --color-muted: #8d99b8;
+  --color-porcelain: #0a1022;
+  --color-paper: #121a31;
+  --color-line: #2a3658;
+  --color-line-soft: #1b2440;
+  --color-cobalt: #6382ff;
+  --color-cobalt-soft: #1a2554;
+  --color-mint: #22c997;
+  --color-mint-soft: #0d3027;
+  --color-rose: #ff5d70;
+  --color-rose-soft: #3a1520;
+  --color-amber: #f0b04f;
+  --color-amber-soft: #352710;
+  --color-night: #1d2a55;
+  --color-mint-ink: #6ee7c2;
+  --color-rose-ink: #ff9aa6;
+  --color-amber-ink: #f6c97a;
+}
+
 @layer base {
   html {
     color-scheme: light;
     -webkit-text-size-adjust: 100%;
+  }
+  /* Everything you can click shows the hand cursor. */
+  a[href],
+  button:not(:disabled),
+  summary,
+  select:not(:disabled),
+  label[for],
+  label:has(> input[type="checkbox"]),
+  label:has(> input[type="radio"]),
+  input[type="checkbox"]:not(:disabled),
+  input[type="radio"]:not(:disabled),
+  input[type="range"],
+  input[type="date"],
+  input[type="time"],
+  [role="button"],
+  [role="tab"],
+  [role="menuitem"],
+  [role="option"] {
+    cursor: pointer;
+  }
+  button:disabled,
+  select:disabled,
+  input:disabled {
+    cursor: not-allowed;
+  }
+  body {
+    transition: background-color 400ms var(--ease-out-expo), color 400ms var(--ease-out-expo);
   }
   html.lenis,
   html.lenis body {
@@ -83,15 +142,40 @@
 }
 
 @utility btn-primary {
-  @apply btn bg-ink text-white hover:bg-cobalt;
+  @apply btn bg-night text-white hover:bg-cobalt hover:shadow-[0_10px_30px_-10px_var(--color-cobalt)];
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  /* light sweep on hover */
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background: linear-gradient(110deg, transparent 30%, rgb(255 255 255 / 0.28) 50%, transparent 70%);
+    transform: translateX(-120%);
+    transition: transform 700ms var(--ease-out-expo);
+  }
+  &:hover::after {
+    transform: translateX(120%);
+  }
+  &:hover {
+    transform: translateY(-1px);
+  }
 }
 
 @utility btn-cobalt {
-  @apply btn bg-cobalt text-white hover:bg-ink;
+  @apply btn bg-cobalt text-white hover:bg-night hover:shadow-[0_10px_30px_-10px_var(--color-cobalt)];
+  &:hover {
+    transform: translateY(-1px);
+  }
 }
 
 @utility btn-ghost {
-  @apply btn border border-line bg-paper/60 text-ink hover:border-ink;
+  @apply btn border border-line bg-paper/60 text-ink hover:border-ink hover:bg-paper;
+  &:hover {
+    transform: translateY(-1px);
+  }
 }
 
 @utility btn-sm {
@@ -125,6 +209,136 @@
   color: var(--color-ink-2);
 }
 
+/* ------------------------------- effects -------------------------------- */
+
+/* Cursor-following glow on cards: add .spotlight (JS sets --mx/--my). */
+.spotlight {
+  position: relative;
+  isolation: isolate;
+  transition: transform 400ms var(--ease-out-expo), box-shadow 400ms var(--ease-out-expo), border-color 300ms;
+}
+.spotlight::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(420px circle at var(--mx, 50%) var(--my, 50%), color-mix(in oklab, var(--color-cobalt) 14%, transparent), transparent 60%);
+  transition: opacity 300ms;
+}
+.spotlight:hover::before {
+  opacity: 1;
+}
+.spotlight:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 18px 40px -24px color-mix(in oklab, var(--color-night) 55%, transparent);
+}
+
+/* Children enter one after another. */
+.stagger > * {
+  animation: rise 700ms var(--ease-out-expo) both;
+}
+.stagger > *:nth-child(1) { animation-delay: 40ms; }
+.stagger > *:nth-child(2) { animation-delay: 90ms; }
+.stagger > *:nth-child(3) { animation-delay: 140ms; }
+.stagger > *:nth-child(4) { animation-delay: 190ms; }
+.stagger > *:nth-child(5) { animation-delay: 240ms; }
+.stagger > *:nth-child(6) { animation-delay: 290ms; }
+.stagger > *:nth-child(7) { animation-delay: 340ms; }
+.stagger > *:nth-child(8) { animation-delay: 390ms; }
+.stagger > *:nth-child(n + 9) { animation-delay: 430ms; }
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.985);
+    filter: blur(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+}
+
+@keyframes grow-y {
+  from { transform: scaleY(0); }
+}
+@keyframes grow-x {
+  from { transform: scaleX(0); }
+}
+@keyframes ring {
+  from { stroke-dashoffset: var(--ring-from); }
+}
+
+@keyframes tile {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.55; transform: scale(0.94); }
+}
+
+@keyframes pop {
+  from { transform: scale(0.4); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+/* Skeletons shimmer instead of blinking. */
+.shimmer {
+  background: linear-gradient(100deg, var(--color-line-soft) 30%, color-mix(in oklab, var(--color-line-soft) 40%, var(--color-paper)) 50%, var(--color-line-soft) 70%);
+  background-size: 300% 100%;
+  animation: shimmer 1.4s linear infinite;
+}
+@keyframes shimmer {
+  to {
+    background-position: -150% 0;
+  }
+}
+
+/* Small tooltip: <span data-tip="Texto">…</span> */
+[data-tip] {
+  position: relative;
+}
+[data-tip]::after {
+  content: attr(data-tip);
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 8px);
+  z-index: 60;
+  width: max-content;
+  max-width: 240px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  background: var(--color-night);
+  color: white;
+  font-size: 12px;
+  line-height: 1.35;
+  font-weight: 450;
+  text-align: center;
+  white-space: normal;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(-50%, 4px);
+  transition: opacity 180ms, transform 180ms var(--ease-out-expo);
+}
+[data-tip]:hover::after,
+[data-tip]:focus-visible::after {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+/* Theme switch: circular reveal (View Transitions API). */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
 /* Split text lines (GSAP SplitText) clip their children for mask reveals. */
 .split-mask {
   overflow: clip;
@@ -141,4 +355,14 @@
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* In dark mode the main button inverts so it stays the brightest thing on screen. */
+html.dark .btn-primary {
+  background: var(--color-ink);
+  color: var(--color-porcelain);
+}
+html.dark .btn-primary:hover {
+  background: var(--color-cobalt);
+  color: white;
 }

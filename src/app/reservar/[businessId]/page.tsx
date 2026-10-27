@@ -3,6 +3,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { ChatWidget } from "@/components/chat/ChatWidget";
+import { BackButton } from "@/components/app/PageChrome";
+import { ThemeToggle } from "@/components/fx/ThemeToggle";
+import { chatSuggestions } from "@/lib/suggestions";
 import { LogoMark } from "@/components/brand/Logo";
 import { getBusiness } from "@/lib/accounts";
 import { getSettings, listServices } from "@/lib/data/store";
@@ -64,6 +67,7 @@ async function Booking({
       greeting={settings.welcomeMessage}
       assistantName={settings.assistantName}
       bookedNote={`Tu cita quedó registrada en la agenda de ${settings.name}.`}
+      suggestions={chatSuggestions(services)}
     />
   );
 
@@ -72,7 +76,11 @@ async function Booking({
 
   return (
     <div className="mx-auto grid max-w-[1100px] gap-10 px-5 py-8 sm:py-12 lg:grid-cols-[0.85fr_1.15fr] lg:gap-14">
-      <section className="lg:pt-6">
+      <div className="flex items-center justify-between lg:col-span-2">
+        {query.desde === "panel" ? <BackButton fallback="/app/ajustes" label="Volver al panel" /> : <BackButton fallback="/" />}
+        <ThemeToggle />
+      </div>
+      <section className="animate-[rise_800ms_var(--ease-out-expo)_both] lg:pt-2">
         {notice && <p role="status" className="mb-6 rounded-2xl bg-mint-soft px-4 py-3 text-[15px]">{notice}</p>}
         <p className="text-sm text-muted">{settings.vertical}</p>
         <h1 className="mt-2 font-display text-[clamp(2.2rem,5vw,3.4rem)] leading-[1] font-semibold tracking-[-0.03em]">{settings.name}</h1>
@@ -83,7 +91,7 @@ async function Booking({
             <h2 className="text-sm font-medium text-ink-2">Servicios</h2>
             <ul className="mt-3 divide-y divide-line-soft rounded-2xl border border-line bg-paper">
               {services.map((s) => (
-                <li key={s.id} className="flex items-baseline justify-between gap-4 px-4 py-3 text-[15px]">
+                <li key={s.id} className="flex items-baseline justify-between gap-4 px-4 py-3 text-[15px] transition-colors hover:bg-porcelain/60">
                   <span>
                     {s.name} <span className="text-sm text-muted">· {s.durationMinutes} min</span>
                   </span>
@@ -120,7 +128,7 @@ async function Booking({
         )}
       </section>
 
-      <section className="h-[640px] max-h-[86dvh]">{chat}</section>
+      <section className="h-[640px] max-h-[86dvh] animate-[rise_900ms_var(--ease-out-expo)_150ms_both]">{chat}</section>
 
       <footer className="flex items-center gap-2 text-sm text-muted lg:col-span-2">
         <LogoMark className="size-5" />

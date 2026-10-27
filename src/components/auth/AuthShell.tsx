@@ -1,16 +1,26 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { Logo } from "../brand/Logo";
+import { BackButton } from "../app/PageChrome";
+import { ThemeToggle } from "../fx/ThemeToggle";
 
 /** Two-column frame shared by the sign-in and sign-up pages. */
 export function AuthShell({ children, aside }: { children: ReactNode; aside: ReactNode }) {
   return (
     <main className="grid min-h-dvh lg:grid-cols-[1fr_0.95fr]">
       <section className="flex flex-col px-6 py-8 sm:px-12">
-        <Link href="/" aria-label="Volver al inicio" className="w-fit">
-          <Logo showByline />
-        </Link>
-        <div className="mx-auto flex w-full max-w-[400px] flex-1 flex-col justify-center py-12">{children}</div>
+        <div className="flex items-center justify-between gap-4">
+          <Link href="/" aria-label="Volver al inicio" className="w-fit">
+            <Logo showByline />
+          </Link>
+          <ThemeToggle />
+        </div>
+        <div className="mx-auto flex w-full max-w-[400px] flex-1 flex-col justify-center py-12">
+          <div className="mb-6">
+            <BackButton fallback="/" />
+          </div>
+          <div className="animate-[rise_800ms_var(--ease-out-expo)_both]">{children}</div>
+        </div>
         <p className="text-sm text-muted">
           Un producto de IONEX ·{" "}
           <Link href="/privacidad" className="hover:text-ink">
@@ -18,14 +28,20 @@ export function AuthShell({ children, aside }: { children: ReactNode; aside: Rea
           </Link>
         </p>
       </section>
-      <aside aria-hidden className="relative hidden overflow-hidden bg-ink p-10 text-white lg:flex lg:flex-col lg:justify-end">
+      <aside aria-hidden className="relative hidden overflow-hidden bg-night p-10 text-white lg:flex lg:flex-col lg:justify-end">
         <div className="absolute inset-0 grid grid-cols-6 content-start gap-3 p-10 opacity-90">
           {Array.from({ length: 42 }, (_, i) => {
             const kinds = ["bg-white/5", "bg-cobalt", "bg-white/5", "bg-mint", "bg-white/10", "bg-white/5", "bg-cobalt/70"];
-            return <div key={i} className={`h-14 rounded-xl ${kinds[(i * 7 + (i % 5)) % kinds.length]}`} />;
+            return (
+              <div
+                key={i}
+                className={`h-14 animate-[tile_6s_ease-in-out_infinite] rounded-xl ${kinds[(i * 7 + (i % 5)) % kinds.length]}`}
+                style={{ animationDelay: `${((i * 37) % 23) * 0.25}s` }}
+              />
+            );
           })}
         </div>
-        <div className="relative rounded-3xl bg-paper p-8 text-ink">{aside}</div>
+        <div className="relative animate-[rise_1000ms_var(--ease-out-expo)_300ms_both] rounded-3xl bg-paper p-8 text-ink shadow-2xl">{aside}</div>
       </aside>
     </main>
   );
@@ -61,7 +77,7 @@ export function GoogleButton({
   }
   return (
     // A plain link: the OAuth flow is a full-page redirect, not a client fetch.
-    <a href={href} className="btn-ghost w-full bg-paper">
+    <a href={href} className="btn-ghost w-full bg-paper hover:shadow-[0_10px_30px_-14px_var(--color-cobalt)]">
       {icon}
       {label}
     </a>

@@ -54,8 +54,8 @@ const tone: Record<AppointmentStatus, string> = {
   booked: "bg-cobalt text-white",
   confirmed: "bg-mint text-white",
   completed: "bg-line-soft text-ink-2",
-  cancelled: "bg-rose-soft text-[#b4233a] line-through decoration-1",
-  no_show: "bg-amber-soft text-[#8a5a12]",
+  cancelled: "bg-rose-soft text-rose-ink line-through decoration-1",
+  no_show: "bg-amber-soft text-amber-ink",
 };
 
 /**
@@ -142,7 +142,7 @@ export function AgendaBoard(props: Props) {
               onClick={() => setStaffFilter(s.id)}
               className={clsx(
                 "flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm transition-colors",
-                staffFilter === s.id ? "border-ink bg-ink text-white" : "border-line bg-paper text-ink-2 hover:border-ink-2",
+                staffFilter === s.id ? "border-ink bg-night text-white" : "border-line bg-paper text-ink-2 hover:border-ink-2",
               )}
             >
               {s.color && <span className="size-2.5 rounded-full" style={{ background: s.color }} aria-hidden />}
@@ -283,7 +283,7 @@ function AppointmentDrawer({ appointment: a, onClose, today, staff }: { appointm
 
   return (
     <>
-      <motion.div className="fixed inset-0 z-40 bg-ink/30" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} />
+      <motion.div className="fixed inset-0 z-40 bg-night/30" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} />
       <motion.aside
         role="dialog"
         aria-modal="true"
@@ -341,7 +341,7 @@ function AppointmentDrawer({ appointment: a, onClose, today, staff }: { appointm
                 <dt className="text-muted">Anticipo</dt>
                 <dd>
                   <span className="tabular">{formatMoney(a.deposit.amount)}</span>{" "}
-                  <span className={clsx("ml-1 rounded-full px-2 py-0.5 text-xs font-medium", a.deposit.status === "paid" ? "bg-mint-soft text-[#0b7a5b]" : a.deposit.status === "pending" ? "bg-amber-soft text-[#8a5a12]" : "bg-line-soft text-ink-2")}>
+                  <span className={clsx("ml-1 rounded-full px-2 py-0.5 text-xs font-medium", a.deposit.status === "paid" ? "bg-mint-soft text-mint-ink" : a.deposit.status === "pending" ? "bg-amber-soft text-amber-ink" : "bg-line-soft text-ink-2")}>
                     {DEPOSIT_LABEL[a.deposit.status]}
                   </span>
                   {a.deposit.status === "pending" && (
@@ -495,7 +495,7 @@ function NewAppointmentDialog({
       onClose={onClose}
       onClick={(e) => e.target === ref.current && onClose()}
       aria-labelledby="new-apt-title"
-      className="m-auto w-[min(560px,calc(100vw-24px))] rounded-[28px] bg-paper p-0 text-ink shadow-2xl backdrop:bg-ink/40 backdrop:backdrop-blur-sm"
+      className="m-auto w-[min(560px,calc(100vw-24px))] rounded-[28px] bg-paper p-0 text-ink shadow-2xl backdrop:bg-night/40 backdrop:backdrop-blur-sm"
     >
       <form ref={formRef} action={action} className="p-6 sm:p-8">
         <h2 id="new-apt-title" className="font-display text-2xl font-semibold tracking-tight">

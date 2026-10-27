@@ -70,7 +70,7 @@ export function RoiCalculator() {
   }, [appointments, ticket, noShow, reduction, afterHours]);
 
   return (
-    <section id="ahorro" aria-labelledby="roi-title" className="bg-ink py-24 text-white sm:py-32">
+    <section id="ahorro" aria-labelledby="roi-title" className="bg-night py-24 text-white sm:py-32">
       <div className="mx-auto max-w-[1240px] px-5">
         <h2 id="roi-title" className="max-w-3xl font-display text-[clamp(2.2rem,4.4vw,3.8rem)] leading-[1] font-semibold tracking-[-0.03em]">
           ¿Cuánto dinero se te va en citas perdidas?
