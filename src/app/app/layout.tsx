@@ -15,7 +15,7 @@ export const metadata: Metadata = { title: "Panel", robots: { index: false } };
 export default function AppLayout({ children }: LayoutProps<"/app">) {
   return (
     <div className="min-h-dvh lg:grid lg:grid-cols-[248px_1fr]">
-      <aside className="sticky top-0 z-30 flex items-center justify-between gap-4 border-b border-line bg-paper/90 px-4 py-3 backdrop-blur lg:h-dvh lg:flex-col lg:items-stretch lg:justify-start lg:overflow-y-auto lg:border-r lg:border-b-0 lg:px-4 lg:py-6">
+      <aside className="sticky top-0 z-30 flex items-center justify-between gap-4 border-b border-line bg-paper px-4 py-3 lg:h-dvh lg:flex-col lg:items-stretch lg:justify-start lg:overflow-y-auto lg:border-r lg:border-b-0 lg:px-4 lg:py-6">
         <Link href="/" className="lg:px-2" aria-label="Velora, sitio público">
           <Logo />
         </Link>
