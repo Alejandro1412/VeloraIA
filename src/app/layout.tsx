@@ -31,7 +31,6 @@ export const metadata: Metadata = {
     "Velora contesta tu WhatsApp y tus llamadas las 24 horas, agenda citas, envía recordatorios y reduce las inasistencias. Un producto de IONEX.",
   applicationName: "Velora",
   appleWebApp: { capable: true, title: "Velora", statusBarStyle: "black-translucent" },
-  icons: { apple: "/icons/apple-touch-icon.png" },
   authors: [{ name: "IONEX" }],
   keywords: ["recepcionista IA", "agendamiento WhatsApp", "citas", "odontología", "recordatorios", "Colombia"],
   openGraph: {
