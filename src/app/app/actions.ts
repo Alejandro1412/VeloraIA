@@ -158,16 +158,17 @@ export async function markNotificationsReadAction() {
 /* ------------------------------ conversations ----------------------------- */
 
 export async function staffReplyAction(conversationId: string, _: ActionState, form: FormData): Promise<ActionState> {
-  await requireSession();
+  const session = await requireSession();
   const text = String(form.get("text") ?? "").trim();
   if (!text) return { error: "Escribe un mensaje" };
   const conv = await getConversation(conversationId);
   if (!conv) return { error: "La conversación ya no existe" };
 
-  if (conv.channel === "whatsapp") {
+  // In the demo, WhatsApp replies are recorded but not sent.
+  if (conv.channel === "whatsapp" && !session.demo) {
     const settings = await getSettings();
     const fromNumber = settings.whatsappPhoneNumberId || process.env.WHATSAPP_PHONE_NUMBER_ID;
-    if (!whatsappConfigured() || !fromNumber) return { error: "Conecta tu número de WhatsApp en Ajustes para responder desde aquí." };
+    if (!whatsappConfigured() || !fromNumber) return { error: "Este cliente escribió por WhatsApp y tu número aún no está conectado, así que no podemos enviarle tu respuesta desde aquí." };
     try {
       await sendText(conv.customerPhone, text, fromNumber);
     } catch (err) {

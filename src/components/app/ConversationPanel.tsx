@@ -11,9 +11,13 @@ interface Props {
   conversation: { id: string; name: string; phone: string; channel: Channel; humanTakeover: boolean; unread: number };
   assistantName: string;
   messages: { id: string; role: MessageRole; text: string; time: string }[];
+  whatsappReady: boolean;
+  demo: boolean;
+  testUrl: string;
 }
 
-export function ConversationPanel({ conversation: c, assistantName, messages }: Props) {
+export function ConversationPanel({ conversation: c, assistantName, messages, whatsappReady, demo, testUrl }: Props) {
+  const blocked = c.channel === "whatsapp" && !whatsappReady;
   const [state, action, pending] = useActionState(staffReplyAction.bind(null, c.id), null);
   const [toggling, startToggle] = useTransition();
   const scroller = useRef<HTMLDivElement>(null);
@@ -86,6 +90,25 @@ export function ConversationPanel({ conversation: c, assistantName, messages }: 
       </div>
 
       <form ref={form} action={action} className="border-t border-line bg-paper px-5 py-4 lg:px-8">
+        <p className="mb-3 text-sm text-ink-2">
+          {blocked ? (
+            <>
+              Este chat llegó por WhatsApp y tu número aún no está conectado, así que no puedes responderle desde aquí. Para hablar tú con {assistantName},{" "}
+              <a href={testUrl} target="_blank" rel="noreferrer" className="font-medium text-cobalt hover:underline">
+                abre tu chat de prueba
+              </a>
+              .
+            </>
+          ) : (
+            <>
+              Esta caja es para que <strong>tu equipo</strong> le responda al cliente{demo && c.channel === "whatsapp" ? " (en la demostración no se envía de verdad)" : ""}. Para conversar tú con {assistantName},{" "}
+              <a href={testUrl} target="_blank" rel="noreferrer" className="font-medium text-cobalt hover:underline">
+                abre tu chat de prueba
+              </a>
+              .
+            </>
+          )}
+        </p>
         <div className="flex items-end gap-2">
           <label htmlFor="reply" className="sr-only">
             Responder como tu equipo
@@ -95,6 +118,7 @@ export function ConversationPanel({ conversation: c, assistantName, messages }: 
             name="text"
             rows={1}
             required
+            disabled={blocked}
             placeholder={c.humanTakeover ? "Escribe tu respuesta…" : `Al responder, ${assistantName} dejará de contestar este chat`}
             className="field max-h-40 min-h-11 resize-none rounded-2xl"
             onKeyDown={(e) => {
@@ -104,7 +128,7 @@ export function ConversationPanel({ conversation: c, assistantName, messages }: 
               }
             }}
           />
-          <button type="submit" disabled={pending} className="btn-primary btn-sm h-11">
+          <button type="submit" disabled={pending || blocked} className="btn-primary btn-sm h-11">
             {pending ? "Enviando…" : "Enviar"}
           </button>
         </div>

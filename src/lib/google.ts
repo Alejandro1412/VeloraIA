@@ -1,4 +1,5 @@
 import "server-only";
+import { canonicalOrigin } from "./site";
 import { createHash, randomBytes } from "node:crypto";
 import { createRemoteJWKSet, jwtVerify } from "jose";
 
@@ -13,7 +14,7 @@ export const googleConfigured = () => !!process.env.GOOGLE_CLIENT_ID && !!proces
 const b64url = (buf: Buffer) => buf.toString("base64url");
 
 export function redirectUri(origin: string) {
-  return `${process.env.NEXT_PUBLIC_SITE_URL || origin}/api/auth/google/callback`;
+  return `${canonicalOrigin() ?? origin}/api/auth/google/callback`;
 }
 
 export function buildAuthRequest(origin: string) {

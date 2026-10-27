@@ -17,7 +17,7 @@ export default function OverviewPage() {
 const pct = (n: number) => `${Math.round(n * 100)}%`;
 
 async function Overview() {
-  await requireSession();
+  const session = await requireSession();
   const o = await getOverview();
   const max = Math.max(1, ...o.perDay.map((d) => d.count));
   const channelTotal = o.byChannel.reduce((s, [, n]) => s + n, 0) || 1;
@@ -32,9 +32,9 @@ async function Overview() {
             <Link href="/app/agenda?new=1" className="btn-primary btn-sm">
               Nueva cita
             </Link>
-            <Link href="/#demo" className="btn-ghost btn-sm">
-              Probar el chat
-            </Link>
+            <a href={`/reservar/${session.businessId}`} target="_blank" rel="noreferrer" className="btn-ghost btn-sm">
+              Probar a {o.settings.assistantName}
+            </a>
           </>
         }
       />

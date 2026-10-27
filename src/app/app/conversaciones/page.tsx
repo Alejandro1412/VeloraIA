@@ -1,3 +1,4 @@
+import { whatsappConfigured } from "@/lib/channels/whatsapp";
 import Link from "next/link";
 import { Suspense } from "react";
 import { clsx } from "clsx";
@@ -18,7 +19,7 @@ export default function ConversationsPage({ searchParams }: PageProps<"/app/conv
 }
 
 async function Conversations({ searchParams }: { searchParams: PageProps<"/app/conversaciones">["searchParams"] }) {
-  await requireSession();
+  const session = await requireSession();
   const params = await searchParams;
   const [settings, conversations] = await Promise.all([getSettings(), listConversations(100)]);
   const selectedId = typeof params.c === "string" ? params.c : undefined;
@@ -34,12 +35,20 @@ async function Conversations({ searchParams }: { searchParams: PageProps<"/app/c
   return (
     <>
       <AutoRefresh seconds={8} />
-      <PageHeader title="Conversaciones" description="Todo lo que tus clientes escriben, y lo que Sofía responde." />
+      <PageHeader
+        title="Conversaciones"
+        description={`Todo lo que tus clientes escriben, y lo que ${settings.assistantName} responde.`}
+        actions={
+          <a href={`/reservar/${session.businessId}`} target="_blank" rel="noreferrer" className="btn-primary btn-sm">
+            Chatear con {settings.assistantName}
+          </a>
+        }
+      />
       <div className="grid min-h-[calc(100dvh-140px)] lg:grid-cols-[360px_1fr]">
         <ul className={clsx("border-line lg:border-r", selected && "hidden lg:block")} aria-label="Conversaciones">
           {conversations.length === 0 && (
             <li className="p-5">
-              <Empty title="Aún no hay conversaciones">Escribe en el chat de la página principal para ver la primera.</Empty>
+              <Empty title="Aún no hay conversaciones">Usa “Chatear con {settings.assistantName}” para escribirle como si fueras un cliente.</Empty>
             </li>
           )}
           {conversations.map((c) => (
@@ -82,6 +91,9 @@ async function Conversations({ searchParams }: { searchParams: PageProps<"/app/c
                 unread: selected.unread,
               }}
               assistantName={settings.assistantName}
+              whatsappReady={session.demo || (whatsappConfigured() && !!(settings.whatsappPhoneNumberId || process.env.WHATSAPP_PHONE_NUMBER_ID))}
+              demo={session.demo}
+              testUrl={`/reservar/${session.businessId}`}
               messages={messages.map((m) => ({ id: m.id, role: m.role, text: m.text, time: stamp(m.createdAt) }))}
             />
           ) : (

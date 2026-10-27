@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { buildAuthRequest, googleConfigured } from "@/lib/google";
+import { canonicalOrigin } from "@/lib/site";
 
 const COOKIE = "velora_google_oauth";
 
@@ -7,6 +8,12 @@ const COOKIE = "velora_google_oauth";
 export async function GET(req: NextRequest) {
   if (!googleConfigured()) {
     return NextResponse.redirect(new URL("/login?error=google_unavailable", req.url));
+  }
+  // Start (and finish) on the domain registered in Google, so the state cookie
+  // and the session cookie live on the same host as the callback.
+  const canonical = canonicalOrigin();
+  if (canonical && canonical !== req.nextUrl.origin) {
+    return NextResponse.redirect(`${canonical}/api/auth/google${req.nextUrl.search}`);
   }
   const { url, state, nonce, verifier } = buildAuthRequest(req.nextUrl.origin);
   const res = NextResponse.redirect(url);
